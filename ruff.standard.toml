@@ -4,9 +4,11 @@ line-length = 120
 
 [lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "C90", "N", "SIM", "RUF", "ASYNC", "PL"]
+# S603: subprocess with a list of arguments and no shell is safe; S602/S604/S605 (shell use) stay on.
+ignore = ["S603"]
 
 [lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106", "PLR2004", "S311"]  # asserts, fake passwords, numbers in assertions, seeded randomness
+"tests/**" = ["S101", "S105", "S106", "PLR2004", "S311"]  # asserts, fake passwords, magic numbers, seeded randomness
 
 [lint.mccabe]
 max-complexity = 12
