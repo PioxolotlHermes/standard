@@ -84,3 +84,22 @@ def test_sync_makes_repo_clean(tmp_path: Path) -> None:
     assert found(root) != set()
     assert main(["sync", "--root", str(root)]) == 0
     assert found(root) == set()
+
+
+def test_build_time_npm_tools_are_dev_only(tmp_path: Path) -> None:
+    """Defect: SvelteKit/Tailwind/adapter built at build time are rejected as runtime dependencies."""
+    package = {
+        "dependencies": {"svelte": "5.0.0"},
+        "devDependencies": {
+            "@sveltejs/kit": "2.0.0",
+            "@sveltejs/adapter-static": "3.0.0",
+            "@sveltejs/vite-plugin-svelte": "5.0.0",
+            "@tailwindcss/vite": "4.0.0",
+            "tailwindcss": "4.0.0",
+        },
+    }
+    runtime = {**package, "dependencies": {"svelte": "5.0.0", "@sveltejs/kit": "2.0.0", "tailwindcss": "4.0.0"}}
+    ok = write_repo(tmp_path / "ok", {"front/package.json": json.dumps(package)}, FRONT_CONFIG)
+    bad = write_repo(tmp_path / "bad", {"front/package.json": json.dumps(runtime)}, FRONT_CONFIG)
+    assert "R9 front/package.json" not in found(ok)
+    assert "R9 front/package.json" in found(bad)
