@@ -50,5 +50,6 @@ def check_budget(sources: list[Source]) -> tuple[list[Violation], str]:
     code = sum(len(s.lines) for s in sources if s.counted and not s.is_test)
     ratio = tests / code if code else (0.0 if not tests else float("inf"))
     text = f"R6 budget: test lines {tests} / code lines {code} = {ratio:.2f} (max 1.00)"
-    bad = [] if ratio <= 1.0 else [Violation("R6", "(repo)", 0, text, baselinable=False)]
+    # baselinable: key "budget", value = lines by which the suite exceeds the code (may only shrink)
+    bad = [] if ratio <= 1.0 else [Violation("R6", "(repo)", 0, text, key="budget", value=tests - code)]
     return bad, text

@@ -13,7 +13,7 @@ only shrink.
 | R3 | Python functions <= 50 lines | checker (front: ESLint) |
 | R4 | Cyclomatic complexity <= 12 | ruff C90 / ESLint `complexity` (via shared configs) |
 | R5 | Code in English; Polish letters only in `[texts]` globs | checker |
-| R6 | Only critical tests: each states `Defect:`; test lines <= code lines | checker |
+| R6 | Only critical tests: each states `Defect:`; test lines <= code lines (an existing overrun is baselined by its excess lines, may only shrink) | checker |
 | R7 | New suppressions (noqa, type: ignore, eslint-disable, skip, `.only`), new exceptions, baseline growth need Piotrek's decision | checker with `--base` |
 | R8 | Shared tooling: `ruff.standard.toml`, `eslint.standard.js`, mypy strict, dev tools pinned exactly | checker (drift) |
 | R9 | Dependencies only from `src/standard/configs/catalog.toml` | checker |
