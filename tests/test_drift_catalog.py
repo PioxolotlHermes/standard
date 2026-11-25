@@ -103,3 +103,15 @@ def test_build_time_npm_tools_are_dev_only(tmp_path: Path) -> None:
     bad = write_repo(tmp_path / "bad", {"front/package.json": json.dumps(runtime)}, FRONT_CONFIG)
     assert "R9 front/package.json" not in found(ok)
     assert "R9 front/package.json" in found(bad)
+
+
+def test_missing_tool_adoption_is_baselinable_but_copies_are_not(tmp_path: Path) -> None:
+    """Defect: a repo without mypy / not yet on the shared ESLint config can never reach 0 errors to adopt the standard."""
+    no_mypy = PYPROJECT.replace("[tool.mypy]\nstrict = true\n", "")
+    root = repo(tmp_path, **{"pyproject.toml": no_mypy})
+    assert "R8 pyproject.toml" in found(root)
+    entry = {"rule": "R8", "path": "pyproject.toml", "key": "mypy-strict", "value": 1}
+    (root / "standard-baseline.json").write_text(json.dumps([entry]), encoding="utf-8")
+    assert found(root) == set()
+    (root / "ruff.standard.toml").write_text("line-length = 100\n", encoding="utf-8")
+    assert "R8 ruff.standard.toml" in found(root)
