@@ -4,3 +4,6 @@ roots = ["src/standard"]
 [modules]
 shared = []
 root = []
+
+[tool.standard]
+format = true

@@ -1,6 +1,7 @@
 """Command line entry point: `standard check | baseline | ...`."""
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from standard.files import list_files
 from standard.init_repo import init_repo
 from standard.model import Violation
 from standard.sync import sync
+from standard.tools import repo_adoption
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -20,7 +22,7 @@ def _parser() -> argparse.ArgumentParser:
     init.add_argument("--root", type=Path, default=Path.cwd())
     init.add_argument("--package", action="append", default=[], help="code root, repeatable (default: detect src/*)")
     init.add_argument("--front", action="append", default=[], help="front dir with package.json, repeatable")
-    for name in ("check", "baseline", "sync"):
+    for name in ("check", "baseline", "sync", "tools"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--root", type=Path, default=Path.cwd())
         cmd.add_argument("--config", type=Path, default=None, help=f"default: <root>/{CONFIG_FILE}")
@@ -28,6 +30,8 @@ def _parser() -> argparse.ArgumentParser:
             cmd.add_argument("--base", default=None, help="git ref for the R7 diff guard (skipped when absent)")
         elif name == "baseline":
             cmd.add_argument("--shrink", action="store_true", help="drop paid-off entries, never add")
+        elif name == "tools":
+            cmd.add_argument("--json", action="store_true", help="print {ruff, format, mypy} adoption as JSON")
     return parser
 
 
@@ -59,6 +63,17 @@ def _sync(args: argparse.Namespace) -> int:
     return 0
 
 
+def _tools(args: argparse.Namespace) -> int:
+    cfg = load_config(args.config or args.root / CONFIG_FILE)
+    adopted = repo_adoption(args.root, cfg.format)
+    print(
+        json.dumps(adopted)
+        if args.json
+        else "\n".join(f"{tool}: {'yes' if on else 'no'}" for tool, on in adopted.items())
+    )
+    return 0
+
+
 def _init(args: argparse.Namespace) -> int:
     written = init_repo(args.root, args.package, args.front)
     print("created: " + ", ".join(written))
@@ -67,7 +82,7 @@ def _init(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    handlers = {"check": _check, "baseline": _baseline, "sync": _sync, "init": _init}
+    handlers = {"check": _check, "baseline": _baseline, "sync": _sync, "init": _init, "tools": _tools}
     try:
         return handlers[args.command](args)
     except ConfigError as exc:

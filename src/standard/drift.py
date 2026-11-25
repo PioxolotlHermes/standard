@@ -8,6 +8,7 @@ from standard.config import Config
 from standard.manifests import Dep, npm_deps, python_deps
 from standard.model import Violation
 from standard.sync import shipped_text, targets
+from standard.tools import adoption
 
 ESLINT_CONFIGS = ("eslint.config.js", "eslint.config.mjs", "eslint.config.ts")
 
@@ -37,19 +38,19 @@ def check_shipped_copies(root: Path, files: list[str], cfg: Config) -> list[Viol
     return out
 
 
-def check_pyproject(root: Path, files: list[str]) -> list[Violation]:
+def check_pyproject(root: Path, files: list[str], cfg: Config) -> list[Violation]:
     out = []
     for rel in (f for f in files if PurePosixPath(f).name == "pyproject.toml"):
-        try:
-            data = tomllib.loads(_read(root, rel) or "")
-        except tomllib.TOMLDecodeError:
-            continue
-        tool = data.get("tool", {})
-        if tool.get("ruff", {}).get("extend") != "ruff.standard.toml":
-            msg = '[tool.ruff] must set extend = "ruff.standard.toml"'
+        adopted = adoption(_read(root, rel) or "", cfg.format)
+        if not adopted["ruff"]:
+            msg = 'ruff not adopted: needs ruff in dev dependencies and [tool.ruff] extend = "ruff.standard.toml"'
             out.append(_adoption("R8", rel, msg, "ruff-extend"))
-        if tool.get("mypy", {}).get("strict") is not True:
-            out.append(_adoption("R8", rel, "[tool.mypy] must set strict = true", "mypy-strict"))
+        if not adopted["format"]:
+            msg = "ruff format not adopted: format the repo, then set [tool.standard] format = true in standard.toml"
+            out.append(_adoption("R8", rel, msg, "format"))
+        if not adopted["mypy"]:
+            msg = "mypy not adopted: needs mypy in dev dependencies and [tool.mypy] strict = true with files/packages"
+            out.append(_adoption("R8", rel, msg, "mypy-strict"))
     return out
 
 
@@ -68,7 +69,7 @@ def _allowed(name: str, patterns: list[str]) -> bool:
 
 
 def check_dependencies(root: Path, files: list[str]) -> list[Violation]:
-    catalog = tomllib.loads(shipped_text("catalog.toml"))
+    catalog = tomllib.loads(shipped_text("catalog.toml"))  # {language: {section: {name: {purpose, ...}}}}
     out = []
     for rel in files:
         kind = PurePosixPath(rel).name
@@ -82,11 +83,11 @@ def check_dependencies(root: Path, files: list[str]) -> list[Violation]:
     return out
 
 
-def _dependency_violations(rel: str, dep: Dep, lists: dict[str, list[str]]) -> list[Violation]:
+def _dependency_violations(rel: str, dep: Dep, lists: dict[str, dict[str, object]]) -> list[Violation]:
     out = []
-    pool = lists["runtime"] if dep.runtime else lists["runtime"] + lists["dev"]
+    pool = [*lists["runtime"]] if dep.runtime else [*lists["runtime"], *lists["dev"]]
     if not _allowed(dep.name, pool):
-        msg = f"{dep.name} is not in the library catalog (catalog.toml); needs Piotrek's decision (tasks ask)"
+        msg = f"{dep.name} is not registered in the library catalog; add it to catalog.toml with a purpose"
         out.append(Violation("R9", rel, 0, msg, key=dep.name))
     if not dep.runtime and not dep.pinned:
         out.append(Violation("R8", rel, 0, f"dev tool {dep.name} must be pinned exactly", key=f"pin:{dep.name}"))
@@ -96,7 +97,7 @@ def _dependency_violations(rel: str, dep: Dep, lists: dict[str, list[str]]) -> l
 def check_drift(root: Path, files: list[str], cfg: Config) -> list[Violation]:
     return (
         check_shipped_copies(root, files, cfg)
-        + check_pyproject(root, files)
+        + check_pyproject(root, files, cfg)
         + check_front_config(root, cfg)
         + check_dependencies(root, files)
     )

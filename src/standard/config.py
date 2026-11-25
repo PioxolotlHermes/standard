@@ -27,6 +27,7 @@ class Config:
     tests: tuple[str, ...] = ()  # extra globs counted as tests (e.g. test-support dirs)
     front_dirs: tuple[str, ...] = ()
     exemptions: tuple[Exemption, ...] = ()
+    format: bool = False  # [tool.standard] format = true: the repo is formatted, `ruff format --check` is enforced
 
     def role(self, module: str) -> str:
         """Role of a top-level module directory: shared, core, root, migrations or module."""
@@ -72,6 +73,7 @@ def parse_config(text: str) -> Config:
         tests=_strings(data.get("tests", {}).get("globs")),
         front_dirs=_strings(data.get("front", {}).get("dirs")),
         exemptions=exemptions,
+        format=data.get("tool", {}).get("standard", {}).get("format") is True,
     )
 
 

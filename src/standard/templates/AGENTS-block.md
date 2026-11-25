@@ -6,5 +6,5 @@
 - R6 only critical tests: each has `Defect: ...`; test lines <= code lines.
 - R7 no new noqa/type: ignore/eslint-disable/skip/.only/exceptions/baseline growth without Piotrek's decision.
 - R8 shared tooling (ruff, mypy strict, ESLint config) synced by `standard sync`; dev tools pinned exactly.
-- R9 dependencies only from the library catalog. Run `uvx --from git+https://github.com/PioxolotlHermes/standard standard check` before
-  every commit; over a limit = split, never raise it or add an exception.
+- R9 dependencies must be registered in the catalog with a purpose; one library per purpose.
+  Run `uvx --from git+https://github.com/PioxolotlHermes/standard standard check` before every commit; over a limit = split.

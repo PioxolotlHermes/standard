@@ -1,5 +1,6 @@
 # Reusable standard check. Callers pin this file AND `ref` to the same standard commit sha (templates/ci-caller.yml).
-# Runs the checker (R1-R9 + diff guard R7), then ruff and mypy when the caller has a pyproject.toml.
+# Runs the checker (R1-R9 + diff guard R7), then ruff, ruff format and mypy - each only when the caller has adopted it
+# (`standard tools --json`).
 # Front lint (ESLint, svelte-check, vitest) stays in the caller's own job.
 # No third-party actions: checkout pinned by SHA, the rest is pip + uv.
 name: standard
@@ -45,14 +46,32 @@ jobs:
           fi
           uvx --from "git+https://github.com/PioxolotlHermes/standard@${REF}" standard check --base "$base"
 
-      - name: python lint (when pyproject.toml exists)
+      - name: adopted python tools
+        id: tools
+        env:
+          REF: ${{ inputs.ref }}
         run: |
           set -euo pipefail
-          if [ -f pyproject.toml ]; then
-            python3 -m pip install --user --disable-pip-version-check "uv==0.13.6"
-            export PATH="$HOME/.local/bin:$PATH"
-            uv sync --frozen
-            uv run ruff check .
-            uv run ruff format --check .
-            uv run mypy
-          fi
+          python3 -m pip install --user --disable-pip-version-check "uv==0.13.6"
+          export PATH="$HOME/.local/bin:$PATH"
+          uvx --from "git+https://github.com/PioxolotlHermes/standard@${REF}" standard tools --json \
+            | python3 -c 'import json, sys; [print(f"{k}={str(v).lower()}") for k, v in json.load(sys.stdin).items()]' \
+            >> "$GITHUB_OUTPUT"
+
+      - name: uv sync (when a python tool is adopted)
+        if: steps.tools.outputs.ruff == 'true' || steps.tools.outputs.mypy == 'true'
+        run: |
+          python3 -m pip install --user --disable-pip-version-check "uv==0.13.6"
+          "$HOME/.local/bin/uv" sync --frozen
+
+      - name: ruff check
+        if: steps.tools.outputs.ruff == 'true'
+        run: ~/.local/bin/uv run ruff check .
+
+      - name: ruff format --check
+        if: steps.tools.outputs.format == 'true'
+        run: ~/.local/bin/uv run ruff format --check .
+
+      - name: mypy
+        if: steps.tools.outputs.mypy == 'true'
+        run: ~/.local/bin/uv run mypy

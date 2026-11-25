@@ -1,50 +1,51 @@
-# Library catalog (R9). One problem = one library. A dependency outside this list needs Piotrek's decision
-# (tasks ask) and an entry in the repo's standard.toml [[exceptions]] (path = the package name, rule = "R9").
+# Library register (R9). Every entry has a `purpose` (one short area); one problem = one library.
+# A dependency missing from this register is an R9 error. Adding a library = a commit to this file with its purpose
+# (no owner decision needed). A second library with the same purpose within a language needs
+# `duplicate_of_ok = "<reason>"`, otherwise the standard's own test fails.
 # Names are normalized (lowercase, "-" for "_" and "."); a trailing "*" is a prefix wildcard.
 
-[python]
-runtime = [
-    "fastapi",
-    "uvicorn",
-    "pydantic",
-    "sqlalchemy",
-    "psycopg",
-    "alembic",
-    "structlog",
-    "httpx2",
-    "apscheduler",
-    "jinja2",
-    "markdown-it-py",
-    "pyyaml",  # always yaml.safe_load
-]
-dev = [
-    "pytest",
-    "pytest-asyncio",
-    "mypy",
-    "ruff",
-    "types-*",
-]
+[python.runtime]
+fastapi = { purpose = "web framework" }
+uvicorn = { purpose = "asgi server" }
+pydantic = { purpose = "data validation" }
+sqlalchemy = { purpose = "orm" }
+psycopg = { purpose = "postgres driver" }
+alembic = { purpose = "db migrations" }
+structlog = { purpose = "logging" }
+httpx2 = { purpose = "http client" }
+apscheduler = { purpose = "scheduler" }
+jinja2 = { purpose = "templates" }
+markdown-it-py = { purpose = "markdown" }
+pyyaml = { purpose = "yaml" }  # always yaml.safe_load
+google-api-python-client = { purpose = "google api" }
+google-auth = { purpose = "google api", duplicate_of_ok = "credentials companion of google-api-python-client" }
+openpyxl = { purpose = "xlsx" }
+pillow = { purpose = "images" }
 
-[npm]
+[python.dev]
+pytest = { purpose = "tests" }
+pytest-asyncio = { purpose = "async tests" }
+mypy = { purpose = "type check" }
+ruff = { purpose = "lint and format" }
+"types-*" = { purpose = "type stubs" }
+
 # SvelteKit, adapter-static, vite plugins and Tailwind are built at build time: dev-only.
-runtime = [
-    "svelte",
-]
-dev = [
-    "@eslint/js",
-    "@playwright/test",
-    "@sveltejs/adapter-static",
-    "@sveltejs/kit",
-    "@sveltejs/vite-plugin-svelte",
-    "@tailwindcss/vite",
-    "eslint",
-    "eslint-plugin-svelte",
-    "globals",
-    "svelte",
-    "svelte-check",
-    "tailwindcss",
-    "typescript",
-    "typescript-eslint",
-    "vite",
-    "vitest",
-]
+[npm.runtime]
+svelte = { purpose = "ui framework" }
+
+[npm.dev]
+"@eslint/js" = { purpose = "lint" }
+"@playwright/test" = { purpose = "e2e tests" }
+"@sveltejs/adapter-static" = { purpose = "static build" }
+"@sveltejs/kit" = { purpose = "app framework" }
+"@sveltejs/vite-plugin-svelte" = { purpose = "svelte build" }
+"@tailwindcss/vite" = { purpose = "css build" }
+eslint = { purpose = "lint", duplicate_of_ok = "the engine that runs @eslint/js rules" }
+eslint-plugin-svelte = { purpose = "lint", duplicate_of_ok = "svelte rules for eslint" }
+globals = { purpose = "lint globals" }
+svelte-check = { purpose = "svelte type check" }
+tailwindcss = { purpose = "css" }
+typescript = { purpose = "typescript" }
+typescript-eslint = { purpose = "lint", duplicate_of_ok = "typescript rules for eslint" }
+vite = { purpose = "bundler" }
+vitest = { purpose = "unit tests" }

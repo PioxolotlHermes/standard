@@ -16,7 +16,7 @@ only shrink.
 | R6 | Only critical tests: each states `Defect:`; test lines <= code lines (an existing overrun is baselined by its excess lines, may only shrink) | checker |
 | R7 | New suppressions (noqa, type: ignore, eslint-disable, skip, `.only`), new exceptions, baseline growth need Piotrek's decision | checker with `--base` |
 | R8 | Shared tooling: `ruff.standard.toml`, `eslint.standard.js`, mypy strict, dev tools pinned exactly (not-yet-adopted tools and floating pins can be baselined; stale synced copies cannot) | checker (drift) |
-| R9 | Dependencies only from `src/standard/configs/catalog.toml` | checker |
+| R9 | Dependencies must be registered in `src/standard/configs/catalog.toml` with a purpose; one library per purpose (a second one needs `duplicate_of_ok = "<reason>"`) | checker |
 
 ## Usage
 
@@ -27,13 +27,19 @@ standard check --base origin/master      # + R7 diff guard
 standard check --config path/to/x.toml   # config outside the repo (read-only probing)
 standard baseline [--shrink]             # write / shrink standard-baseline.json
 standard sync                            # copy shared configs into the repo
+standard tools --json                    # adopted lint tools: {"ruff": bool, "format": bool, "mypy": bool}
 ```
 
 Output is one line per violation: `RULE path:line message`; exit code 1 on any error. A baselined violation passes while it
 does not grow; a baseline entry that no longer fails is an error (run `standard baseline --shrink`).
 
 CI: copy `templates/ci-caller.yml`, put `templates/AGENTS-block.md` into the repo's `AGENTS.md`. The reusable workflow runs
-the checker and, when `pyproject.toml` exists, ruff and mypy. Front lint (ESLint, svelte-check, vitest) stays in the repo's
+the checker and then ruff, `ruff format --check` and mypy, each only when the repo has adopted it (`standard tools --json`):
+ruff = `ruff` dev dependency + `[tool.ruff] extend = "ruff.standard.toml"`; format = ruff + `[tool.standard] format = true` in
+`standard.toml` (set it once the repo is formatted); mypy = `mypy` dev dependency + `[tool.mypy] strict = true` + `files` or
+`packages`. A tool not adopted is R8 debt in the baseline, so adopting it is a one-line switch that the ratchet keeps.
+
+Libraries: a dependency missing from the catalog is an R9 error. To add one, commit it to `catalog.toml` with a `purpose`. Front lint (ESLint, svelte-check, vitest) stays in the repo's
 own job.
 
 ## Pinning and bumping

@@ -44,7 +44,9 @@ def test_lint_steps_run_only_for_adopted_tools() -> None:
     text = (REPO / ".github/workflows/standard.yml").read_text(encoding="utf-8")
     assert "standard tools --json" in text
     for tool, command in (("ruff", "ruff check ."), ("format", "ruff format --check ."), ("mypy", "mypy")):
-        step = re.search(rf"- name: [^\n]*\n\s+if: steps\.tools\.outputs\.{tool} == 'true'\n(.*?)(?=\n      - name|\Z)", text, re.S)
+        step = re.search(
+            rf"- name: [^\n]*\n\s+if: steps\.tools\.outputs\.{tool} == 'true'\n(.*?)(?=\n      - name|\Z)", text, re.S
+        )
         assert step and f"uv run {command}" in step.group(1), tool
 
 

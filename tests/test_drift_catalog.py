@@ -12,15 +12,17 @@ name = "x"
 dependencies = ["fastapi==1.0.0", "uvicorn[standard]==1.0.0"]
 
 [dependency-groups]
-dev = ["ruff==0.17.5", "types-pyyaml==6.0.0"]
+dev = ["ruff==0.17.5", "mypy==2.4.1", "types-pyyaml==6.0.0"]
 
 [tool.ruff]
 extend = "ruff.standard.toml"
 
 [tool.mypy]
 strict = true
+files = ["src"]
 """
-FRONT_CONFIG = CONFIG + '\n[front]\ndirs = ["front"]\n'
+FORMATTED = CONFIG + "\n[tool.standard]\nformat = true\n"
+FRONT_CONFIG = FORMATTED + '\n[front]\ndirs = ["front"]\n'
 
 
 def repo(tmp_path: Path, **overrides: str | None) -> Path:
@@ -29,7 +31,7 @@ def repo(tmp_path: Path, **overrides: str | None) -> Path:
         "ruff.standard.toml": shipped_text("ruff.standard.toml"),
     }
     files.update(overrides)
-    return write_repo(tmp_path, {k: v for k, v in files.items() if v is not None})
+    return write_repo(tmp_path, {k: v for k, v in files.items() if v is not None}, FORMATTED)
 
 
 def test_clean_synced_repo_passes(tmp_path: Path) -> None:
@@ -73,7 +75,7 @@ def test_dependency_outside_catalog(tmp_path: Path) -> None:
     errors = found(root)
     assert {"R9 pyproject.toml", "R9 package.json"} <= errors
     exception = '\n[[exceptions]]\npath = "requests"\nrule = "R9"\nreason = "legacy client"\n'
-    (root / "standard.toml").write_text(CONFIG + exception, encoding="utf-8")
+    (root / "standard.toml").write_text(FORMATTED + exception, encoding="utf-8")
     assert "R9 pyproject.toml" not in found(root)
 
 
@@ -107,7 +109,7 @@ def test_build_time_npm_tools_are_dev_only(tmp_path: Path) -> None:
 
 def test_missing_tool_adoption_is_baselinable_but_copies_are_not(tmp_path: Path) -> None:
     """Defect: a repo without mypy or the shared ESLint config can never reach 0 errors to adopt the standard."""
-    no_mypy = PYPROJECT.replace("[tool.mypy]\nstrict = true\n", "")
+    no_mypy = PYPROJECT.replace('[tool.mypy]\nstrict = true\nfiles = ["src"]\n', "")
     root = repo(tmp_path, **{"pyproject.toml": no_mypy})
     assert "R8 pyproject.toml" in found(root)
     entry = {"rule": "R8", "path": "pyproject.toml", "key": "mypy-strict", "value": 1}
