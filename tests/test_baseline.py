@@ -56,3 +56,13 @@ def test_exception_needs_reason_and_suppresses(tmp_path: Path) -> None:
     no_reason = write_repo(tmp_path / "no", BIG, CONFIG + entry_toml)
     assert found(ok) == set()
     assert "CONFIG standard.toml" in found(no_reason)
+
+
+def test_test_budget_overrun_is_baselinable_and_may_not_grow(tmp_path: Path) -> None:
+    """Defect: a repo whose suite already outgrew its code can never reach 0 errors, or its excess grows unnoticed."""
+    tests = 'def test_a() -> None:\n    """Defect: x."""\n    assert True\n'
+    root = write_repo(tmp_path, {"src/pkg/a/x.py": "x = 1\n", "tests/test_a.py": tests})
+    baseline(root, [{"rule": "R6", "path": "(repo)", "key": "budget", "value": 2}])
+    assert "R6 (repo)" not in found(root)
+    baseline(root, [{"rule": "R6", "path": "(repo)", "key": "budget", "value": 1}])
+    assert "R6 (repo)" in found(root)
