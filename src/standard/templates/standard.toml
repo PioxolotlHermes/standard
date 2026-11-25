@@ -1,0 +1,24 @@
+# standard.toml - per-repo settings for https://github.com/PioxolotlHermes/standard
+[package]
+# Code roots whose top-level directories are modules (R1). Add front roots, e.g. "front/src/lib".
+roots = ["src/example"]
+
+[modules]
+shared = []      # imported by everyone, import nothing from the app (e.g. "common")
+root = []        # composition roots: import everything, imported by nobody (e.g. "web", "cli")
+migrations = []  # Alembic-style scaffolding: may import everything
+# core = [{ name = "people", adr = "docs/adr/0001-structure.md" }]   # only with an ADR; imports only shared
+
+[texts]
+# Files where Polish letters are allowed (UI texts, seeds) - R5.
+globs = []
+
+[front]
+# Directories with package.json + ESLint; `standard sync` writes eslint.standard.js into each.
+dirs = []
+
+# Exceptions need Piotrek's decision (tasks ask); the reason is mandatory.
+# [[exceptions]]
+# path = "src/example/vendor.py"   # glob; for R9 the package name
+# rule = "R2"
+# reason = "vendored upstream file"

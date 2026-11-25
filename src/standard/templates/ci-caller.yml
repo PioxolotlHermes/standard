@@ -1,0 +1,19 @@
+# Caller of the shared standard check. Pin BOTH the workflow and `ref` to the same standard commit sha.
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  standard:
+    uses: PioxolotlHermes/standard/.github/workflows/standard.yml@<standard-sha>
+    with:
+      ref: <standard-sha>
+
+  # Front lint (ESLint, svelte-check, vitest) stays in the repo's own job; make the build/image job
+  # `needs: [standard, ...]` so a red standard check blocks deployment.

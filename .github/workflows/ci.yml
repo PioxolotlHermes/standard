@@ -1,4 +1,4 @@
-# Tests + lint of the standard repo itself. (Replaced by the reusable workflow self-check in group 3.)
+# Tests of the standard repo itself, plus the self-check through the same reusable workflow other repos call.
 name: ci
 
 on:
@@ -10,15 +10,13 @@ permissions:
   contents: read
 
 jobs:
-  checks:
+  tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          fetch-depth: 0
 
-      - name: pytest, ruff, mypy, self-check
+      - name: pytest, ruff, mypy
         run: |
           set -euo pipefail
           python3 -m pip install --user --disable-pip-version-check "uv==0.13.6"
@@ -28,4 +26,8 @@ jobs:
           uv run ruff check .
           uv run ruff format --check .
           uv run mypy
-          uv run standard check
+
+  standard:
+    uses: ./.github/workflows/standard.yml
+    with:
+      ref: ${{ github.sha }}

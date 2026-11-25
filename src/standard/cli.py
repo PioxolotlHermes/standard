@@ -8,6 +8,7 @@ from standard import baseline
 from standard.config import ConfigError, load_config
 from standard.engine import CONFIG_FILE, analyze, run_check
 from standard.files import list_files
+from standard.init_repo import init_repo
 from standard.model import Violation
 from standard.sync import sync
 
@@ -15,6 +16,10 @@ from standard.sync import sync
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="standard", description="PioxolotlHermes code standard checker")
     sub = parser.add_subparsers(dest="command", required=True)
+    init = sub.add_parser("init", help="create standard.toml, an empty baseline and synced configs")
+    init.add_argument("--root", type=Path, default=Path.cwd())
+    init.add_argument("--package", action="append", default=[], help="code root, repeatable (default: detect src/*)")
+    init.add_argument("--front", action="append", default=[], help="front dir with package.json, repeatable")
     for name in ("check", "baseline", "sync"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--root", type=Path, default=Path.cwd())
@@ -54,9 +59,15 @@ def _sync(args: argparse.Namespace) -> int:
     return 0
 
 
+def _init(args: argparse.Namespace) -> int:
+    written = init_repo(args.root, args.package, args.front)
+    print("created: " + ", ".join(written))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    handlers = {"check": _check, "baseline": _baseline, "sync": _sync}
+    handlers = {"check": _check, "baseline": _baseline, "sync": _sync, "init": _init}
     try:
         return handlers[args.command](args)
     except ConfigError as exc:

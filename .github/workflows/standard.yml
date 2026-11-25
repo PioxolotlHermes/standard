@@ -1,0 +1,58 @@
+# Reusable standard check. Callers pin this file AND `ref` to the same standard commit sha (templates/ci-caller.yml).
+# Runs the checker (R1-R9 + diff guard R7), then ruff and mypy when the caller has a pyproject.toml.
+# Front lint (ESLint, svelte-check, vitest) stays in the caller's own job.
+# No third-party actions: checkout pinned by SHA, the rest is pip + uv.
+name: standard
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: standard repo commit sha to run the checker from (the one the caller pins)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  standard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0   # the diff guard needs the pushed range
+
+      - name: standard check
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user --disable-pip-version-check "uv==0.13.6"
+          export PATH="$HOME/.local/bin:$PATH"
+          if [ "$EVENT" = pull_request ]; then
+            base="$PR_BASE"
+          else
+            base="${BEFORE:-}"
+          fi
+          # new branch (before = zeros), unknown commit after a force push: everything the branch adds to master
+          if [ -z "${base//0/}" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            base="$(git merge-base origin/master HEAD || git rev-parse HEAD)"
+          fi
+          uvx --from "git+https://github.com/PioxolotlHermes/standard@${REF}" standard check --base "$base"
+
+      - name: python lint (when pyproject.toml exists)
+        run: |
+          set -euo pipefail
+          if [ -f pyproject.toml ]; then
+            python3 -m pip install --user --disable-pip-version-check "uv==0.13.6"
+            export PATH="$HOME/.local/bin:$PATH"
+            uv sync --frozen
+            uv run ruff check .
+            uv run ruff format --check .
+            uv run mypy
+          fi
