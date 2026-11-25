@@ -39,6 +39,15 @@ def test_reusable_workflow_is_safe_and_pinned() -> None:
     assert uses == [CHECKOUT_SHA]
 
 
+def test_lint_steps_run_only_for_adopted_tools() -> None:
+    """Defect: the reusable workflow lints with tools a repo has not adopted, so atlas and the monorepo stay red."""
+    text = (REPO / ".github/workflows/standard.yml").read_text(encoding="utf-8")
+    assert "standard tools --json" in text
+    for tool, command in (("ruff", "ruff check ."), ("format", "ruff format --check ."), ("mypy", "mypy")):
+        step = re.search(rf"- name: [^\n]*\n\s+if: steps\.tools\.outputs\.{tool} == 'true'\n(.*?)(?=\n      - name|\Z)", text, re.S)
+        assert step and f"uv run {command}" in step.group(1), tool
+
+
 def test_own_ci_enforces_the_standard_through_the_reusable_workflow() -> None:
     """Defect: this repo stops dogfooding the checker, so the standard rots unnoticed."""
     text = (REPO / ".github/workflows/ci.yml").read_text(encoding="utf-8")
