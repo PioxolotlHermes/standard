@@ -71,13 +71,13 @@ def check_dependencies(root: Path, files: list[str]) -> list[Violation]:
         deps = python_deps(text) if py else npm_deps(text)
         lists = catalog["python" if py else "npm"]
         for dep in deps:
-            out += _dependency_violations(rel, dep, lists, strict_runtime=py)
+            out += _dependency_violations(rel, dep, lists)
     return out
 
 
-def _dependency_violations(rel: str, dep: Dep, lists: dict[str, list[str]], strict_runtime: bool) -> list[Violation]:
+def _dependency_violations(rel: str, dep: Dep, lists: dict[str, list[str]]) -> list[Violation]:
     out = []
-    pool = lists["runtime"] if dep.runtime and strict_runtime else lists["runtime"] + lists["dev"]
+    pool = lists["runtime"] if dep.runtime else lists["runtime"] + lists["dev"]
     if not _allowed(dep.name, pool):
         msg = f"{dep.name} is not in the library catalog (catalog.toml); needs Piotrek's decision (tasks ask)"
         out.append(Violation("R9", rel, 0, msg, key=dep.name))

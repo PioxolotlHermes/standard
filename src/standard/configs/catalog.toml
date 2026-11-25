@@ -26,10 +26,9 @@ dev = [
 ]
 
 [npm]
+# SvelteKit, adapter-static, vite plugins and Tailwind are built at build time: dev-only.
 runtime = [
     "svelte",
-    "@sveltejs/kit",
-    "tailwindcss",
 ]
 dev = [
     "@eslint/js",

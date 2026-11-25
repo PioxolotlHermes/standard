@@ -46,7 +46,7 @@ def _suppressed(violation: Violation, cfg: Config) -> bool:
 def analyze(root: Path, cfg: Config, name: str = CONFIG_FILE) -> tuple[list[Violation], str]:
     """All violations after exceptions (before the baseline), plus the R6 budget line."""
     files = list_files(root)
-    sources = load_sources(root, files)
+    sources = load_sources(root, files, cfg.tests)
     budget_violations, budget = check_budget(sources)
     found = (
         check_imports(sources, cfg)

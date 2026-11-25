@@ -8,7 +8,7 @@ only shrink.
 
 | ID | Rule | Checked by |
 |---|---|---|
-| R1 | Modular monolith: module = top-level directory under a package root; no imports between modules. Roles in `standard.toml`: `shared`, `core` (needs an ADR), `root`, `migrations` | checker (Python AST, TS/Svelte imports) |
+| R1 | Modular monolith (production code only; tests may import any module, production must not import tests or `[tests] globs` dirs): module = top-level directory under a package root; no imports between modules. Roles in `standard.toml`: `shared`, `core` (needs an ADR), `root`, `migrations` | checker (Python AST, TS/Svelte imports) |
 | R2 | Files <= 200 physical lines, tests <= 300 (migrations, `# generated` files, data exempt) | checker |
 | R3 | Python functions <= 50 lines | checker (front: ESLint) |
 | R4 | Cyclomatic complexity <= 12 | ruff C90 / ESLint `complexity` (via shared configs) |

@@ -40,6 +40,10 @@ def is_test_path(rel: str) -> bool:
     return name.startswith("test_") and name.endswith(".py")
 
 
+def _matches(rel: str, globs: tuple[str, ...]) -> bool:
+    return any(PurePosixPath(rel).full_match(g) for g in globs)
+
+
 def _is_migration(rel: str) -> bool:
     parts = PurePosixPath(rel).parts
     return any(a == "migrations" and b == "versions" for a, b in itertools.pairwise(parts))
@@ -77,7 +81,7 @@ def list_files(root: Path) -> list[str]:
     return sorted(kept)
 
 
-def load_sources(root: Path, files: list[str]) -> list[Source]:
+def load_sources(root: Path, files: list[str], test_globs: tuple[str, ...] = ()) -> list[Source]:
     sources = []
     for rel in files:
         if PurePosixPath(rel).suffix not in CODE_EXT:
@@ -86,7 +90,7 @@ def load_sources(root: Path, files: list[str]) -> list[Source]:
         lines = tuple(text.splitlines())
         generated = bool(lines) and lines[0].strip() in GENERATED
         counted = not generated and not _is_migration(rel)
-        sources.append(Source(rel, text, lines, is_test_path(rel), counted))
+        sources.append(Source(rel, text, lines, is_test_path(rel) or _matches(rel, test_globs), counted))
     return sources
 
 

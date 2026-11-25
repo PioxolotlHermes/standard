@@ -13,6 +13,10 @@ migrations = []  # Alembic-style scaffolding: may import everything
 # Files where Polish letters are allowed (UI texts, seeds) - R5.
 globs = []
 
+[tests]
+# Extra globs counted as tests (R1 exempt for them, production must not import them; R2 300, R6), e.g. test-support.
+globs = []
+
 [front]
 # Directories with package.json + ESLint; `standard sync` writes eslint.standard.js into each.
 dirs = []

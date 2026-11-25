@@ -36,6 +36,13 @@ def module_dirs(sources: list[Source], roots: tuple[str, ...]) -> dict[str, set[
     return dirs
 
 
+def test_modules(sources: list[Source], roots: tuple[str, ...]) -> set[tuple[str, str]]:
+    """(root, module) pairs whose code files are all tests - production code must not import them."""
+    prod = {(r, m) for r, ms in module_dirs([s for s in sources if not s.is_test], roots).items() for m in ms}
+    every = {(r, m) for r, ms in module_dirs(sources, roots).items() for m in ms}
+    return every - prod
+
+
 def _targets(src: Source, root: str, cfg: Config) -> list[tuple[int, str, str]]:
     """(line, root, target) for one file; empty when the file cannot be analysed."""
     below = PurePosixPath(src.rel).relative_to(root).parts
@@ -49,8 +56,11 @@ def _targets(src: Source, root: str, cfg: Config) -> list[tuple[int, str, str]]:
 
 def check_imports(sources: list[Source], cfg: Config) -> list[Violation]:
     known = module_dirs(sources, cfg.roots)
+    test_only = test_modules(sources, cfg.roots)
     out: list[Violation] = []
     for src in sources:
+        if src.is_test:
+            continue  # tests may import any module
         root = next((r for r in cfg.roots if src.rel.startswith(r + "/")), None)
         if root is None:
             continue
@@ -61,6 +71,8 @@ def check_imports(sources: list[Source], cfg: Config) -> list[Violation]:
             if target not in known.get(tgt_root, set()) or (tgt_root, target) == (root, mine):
                 continue
             reason = forbidden(role, mine, cfg.role(target), target)
+            if not reason and (tgt_root, target) in test_only and (tgt_root, target) != (root, mine):
+                reason = f"production code imports test-support module {target}"
             if reason:
                 out.append(Violation("R1", src.rel, line, reason, key=f"->{target}"))
     return out

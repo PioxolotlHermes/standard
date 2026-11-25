@@ -24,6 +24,7 @@ class Config:
     root: frozenset[str] = frozenset()
     migrations: frozenset[str] = frozenset()
     texts: tuple[str, ...] = ()
+    tests: tuple[str, ...] = ()  # extra globs counted as tests (e.g. test-support dirs)
     front_dirs: tuple[str, ...] = ()
     exemptions: tuple[Exemption, ...] = ()
 
@@ -68,6 +69,7 @@ def parse_config(text: str) -> Config:
         root=frozenset(_strings(modules.get("root"))),
         migrations=frozenset(_strings(modules.get("migrations"))),
         texts=_strings(data.get("texts", {}).get("globs")),
+        tests=_strings(data.get("tests", {}).get("globs")),
         front_dirs=_strings(data.get("front", {}).get("dirs")),
         exemptions=exemptions,
     )
