@@ -16,6 +16,11 @@ def _fixed(rule: str, path: str, message: str) -> Violation:
     return Violation(rule, path, 0, message, baselinable=False)
 
 
+def _adoption(rule: str, path: str, message: str, key: str) -> Violation:
+    """Tool not adopted yet (mypy strict, ruff extend, shared ESLint import): baselinable debt."""
+    return Violation(rule, path, 0, message, key=key)
+
+
 def _read(root: Path, rel: str) -> str | None:
     path = root / rel
     return path.read_text(encoding="utf-8") if path.is_file() else None
@@ -41,9 +46,10 @@ def check_pyproject(root: Path, files: list[str]) -> list[Violation]:
             continue
         tool = data.get("tool", {})
         if tool.get("ruff", {}).get("extend") != "ruff.standard.toml":
-            out.append(_fixed("R8", rel, '[tool.ruff] must set extend = "ruff.standard.toml"'))
+            msg = '[tool.ruff] must set extend = "ruff.standard.toml"'
+            out.append(_adoption("R8", rel, msg, "ruff-extend"))
         if tool.get("mypy", {}).get("strict") is not True:
-            out.append(_fixed("R8", rel, "[tool.mypy] must set strict = true"))
+            out.append(_adoption("R8", rel, "[tool.mypy] must set strict = true", "mypy-strict"))
     return out
 
 
@@ -52,7 +58,8 @@ def check_front_config(root: Path, cfg: Config) -> list[Violation]:
     for front in cfg.front_dirs:
         texts = [_read(root, f"{front}/{name}") for name in ESLINT_CONFIGS]
         if not any(text and "eslint.standard" in text for text in texts):
-            out.append(_fixed("R8", f"{front}/eslint.config.js", "must import ./eslint.standard.js"))
+            msg = "must import ./eslint.standard.js"
+            out.append(_adoption("R8", f"{front}/eslint.config.js", msg, "eslint-standard"))
     return out
 
 

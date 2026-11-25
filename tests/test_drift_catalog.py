@@ -106,7 +106,7 @@ def test_build_time_npm_tools_are_dev_only(tmp_path: Path) -> None:
 
 
 def test_missing_tool_adoption_is_baselinable_but_copies_are_not(tmp_path: Path) -> None:
-    """Defect: a repo without mypy / not yet on the shared ESLint config can never reach 0 errors to adopt the standard."""
+    """Defect: a repo without mypy or the shared ESLint config can never reach 0 errors to adopt the standard."""
     no_mypy = PYPROJECT.replace("[tool.mypy]\nstrict = true\n", "")
     root = repo(tmp_path, **{"pyproject.toml": no_mypy})
     assert "R8 pyproject.toml" in found(root)
