@@ -1,0 +1,51 @@
+# Library catalog (R9). One problem = one library. A dependency outside this list needs Piotrek's decision
+# (tasks ask) and an entry in the repo's standard.toml [[exceptions]] (path = the package name, rule = "R9").
+# Names are normalized (lowercase, "-" for "_" and "."); a trailing "*" is a prefix wildcard.
+
+[python]
+runtime = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "sqlalchemy",
+    "psycopg",
+    "alembic",
+    "structlog",
+    "httpx2",
+    "apscheduler",
+    "jinja2",
+    "markdown-it-py",
+    "pyyaml",  # always yaml.safe_load
+]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "mypy",
+    "ruff",
+    "types-*",
+]
+
+[npm]
+runtime = [
+    "svelte",
+    "@sveltejs/kit",
+    "tailwindcss",
+]
+dev = [
+    "@eslint/js",
+    "@playwright/test",
+    "@sveltejs/adapter-static",
+    "@sveltejs/kit",
+    "@sveltejs/vite-plugin-svelte",
+    "@tailwindcss/vite",
+    "eslint",
+    "eslint-plugin-svelte",
+    "globals",
+    "svelte",
+    "svelte-check",
+    "tailwindcss",
+    "typescript",
+    "typescript-eslint",
+    "vite",
+    "vitest",
+]

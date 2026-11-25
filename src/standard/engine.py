@@ -6,6 +6,7 @@ from standard import baseline
 from standard.config import Config, load_config
 from standard.defect_rule import check_budget, check_defects
 from standard.diff_guard import check_diff
+from standard.drift import check_drift
 from standard.files import list_files, load_sources
 from standard.model import Report, Violation
 from standard.r1_imports import check_imports
@@ -33,7 +34,11 @@ def config_problems(root: Path, cfg: Config, name: str) -> list[Violation]:
 
 def _suppressed(violation: Violation, cfg: Config) -> bool:
     for item in cfg.exemptions:
-        if item.reason and item.rule == violation.rule and PurePosixPath(violation.path).full_match(item.path):
+        if (
+            item.reason
+            and item.rule == violation.rule
+            and (PurePosixPath(violation.path).full_match(item.path) or violation.key == item.path)
+        ):
             return True
     return False
 
@@ -50,6 +55,7 @@ def analyze(root: Path, cfg: Config, name: str = CONFIG_FILE) -> tuple[list[Viol
         + check_polish(sources, cfg.texts)
         + check_defects(sources)
         + budget_violations
+        + check_drift(root, files, cfg)
         + config_problems(root, cfg, name)
     )
     return [v for v in found if not _suppressed(v, cfg)], budget
