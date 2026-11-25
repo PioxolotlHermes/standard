@@ -1,0 +1,12 @@
+# Shared ruff settings (R8). Synced by `standard sync`; do not edit in the consuming repo.
+# The consuming pyproject.toml sets `[tool.ruff] extend = "ruff.standard.toml"` plus target-version and src.
+line-length = 120
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "C90", "N", "SIM", "RUF", "ASYNC", "PL"]
+
+[lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "PLR2004", "S311"]  # asserts, fake passwords, numbers in assertions, seeded randomness
+
+[lint.mccabe]
+max-complexity = 12

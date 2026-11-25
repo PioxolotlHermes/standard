@@ -1,0 +1,42 @@
+[project]
+name = "pioxolotl-standard"
+version = "0.1.0"
+description = "Shared code standard checker, tool configs and library catalog for PioxolotlHermes repos"
+readme = "README.md"
+requires-python = ">=3.15"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+    "mypy==2.4.1",
+    "ruff==0.17.5",
+]
+
+[project.scripts]
+standard = "standard.cli:main"
+
+[tool.uv.build-backend]
+module-name = "standard"
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.ruff]
+extend = "ruff.standard.toml"
+target-version = "py315"
+src = ["src", "tests"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["standard", "tests"]
+
+[tool.mypy]
+strict = true
+python_version = "3.15"
+mypy_path = "src"
+packages = ["standard", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
