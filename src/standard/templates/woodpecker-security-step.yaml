@@ -10,9 +10,11 @@
 #   id = "GHSA-xxxx-xxxx-xxxx"        # advisory id / alias (CVE-...), or the gitleaks Fingerprint for a secret
 #   reason = "why it is safe or not reachable"
 #   expires = "2027-02-28"            # YYYY-MM-DD, the finding comes back after it
-# When it runs: dependency + image scans on pull_request/push that change a lockfile or a Dockerfile, and always on cron
-# and manual. A normal push skips them (green, seconds) and the push/deploy step still runs. gitleaks and the gate are
-# seconds and run on every pipeline.
+# When it runs: dependency + image scans on pull_request/push that change a lockfile, a Dockerfile or the ignore file,
+# and always on cron and manual. On any other push the step starts, sees from CI_PIPELINE_FILES that nothing relevant
+# changed and exits 0 in about a second (digest-pinned images stay cached on the agent); the push/deploy step is never
+# blocked. gitleaks and the gate are seconds and run on every pipeline. (Woodpecker `when: path:` cannot be used: a step
+# that depends on a filtered-out step is a compile error, and the gate must depend on the scanners.)
 # Paste into the repo's .woodpecker.yaml:
 #   - the `variables:` anchors and the `steps:` below; STANDARD_REF is the same sha as in the `standard` step;
 #   - add `security-gate` to `depends_on` of the build/push steps (a skipped gate does not block them);
@@ -26,18 +28,22 @@ variables:
   - &osv_image ghcr.io/google/osv-scanner:v2.7.1@sha256:a70ffffc2bfd33482953e5d6b64c6fcdb30239717a07b0f0d3ab2859ce3e4cde
   - &gitleaks_image ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
   - &trivy_image ghcr.io/aquasecurity/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb
-  - &security_when
-    - event: [cron, manual]
-    - event: [push, pull_request]
-      path:
-        include: ["**/uv.lock", "**/requirements*.txt", "**/package-lock.json", "**/pnpm-lock.yaml", "**/Dockerfile*", security-ignore.toml]
+  # Sourced at the top of the dependency and image scans: exit 0 on a push/PR that changed no lockfile / Dockerfile.
+  - &skip_unless_relevant |
+    case "$CI_PIPELINE_EVENT" in
+      push|pull_request)
+        if [ -n "${CI_PIPELINE_FILES:-}" ] && ! printf %s "$CI_PIPELINE_FILES" | grep -Eq '(uv\.lock|requirements[^"/]*\.txt|package-lock\.json|pnpm-lock\.yaml|Dockerfile[^"/]*|security-ignore\.toml)"'; then
+          echo "security scan skipped: no lockfile, Dockerfile or security-ignore.toml changed"
+          exit 0
+        fi ;;
+    esac
 
 steps:
   - name: security-deps
     image: *osv_image
     depends_on: []
-    when: *security_when
     commands:
+      - *skip_unless_relevant
       - mkdir -p .security
       # exit 1 = vulnerabilities found (the gate judges them); anything above is a scanner failure
       - osv-scanner scan source -r --allow-no-lockfiles --x-exclude node_modules --x-exclude .venv --format json --output-file .security/osv.json . || [ $? -eq 1 ]
@@ -54,8 +60,8 @@ steps:
   - name: security-image
     image: *trivy_image
     depends_on: []
-    when: *security_when
     commands:
+      - *skip_unless_relevant
       - mkdir -p .security
       - |
         set -eu
