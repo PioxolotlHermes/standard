@@ -14,7 +14,8 @@
 # and always on cron and manual. On any other push the step starts, sees from CI_PIPELINE_FILES that nothing relevant
 # changed and exits 0 in about a second (digest-pinned images stay cached on the agent); the push/deploy step is never
 # blocked. gitleaks and the gate are seconds and run on every pipeline. (Woodpecker `when: path:` cannot be used: a step
-# that depends on a filtered-out step is a compile error, and the gate must depend on the scanners.)
+# that depends on a filtered-out step is a compile error, and the gate must depend on the scanners. Never write ${VAR}
+# in a step: Woodpecker substitutes it while compiling the file; plain $VAR is left to the shell.)
 # Paste into the repo's .woodpecker.yaml:
 #   - the `variables:` anchors and the `steps:` below; STANDARD_REF is the same sha as in the `standard` step;
 #   - add `security-gate` to `depends_on` of the build/push steps (a skipped gate does not block them);
@@ -32,7 +33,7 @@ variables:
   - &skip_unless_relevant |
     case "$CI_PIPELINE_EVENT" in
       push|pull_request)
-        if [ -n "${CI_PIPELINE_FILES:-}" ] && ! printf %s "$CI_PIPELINE_FILES" | grep -Eq '(uv\.lock|requirements[^"/]*\.txt|package-lock\.json|pnpm-lock\.yaml|Dockerfile[^"/]*|security-ignore\.toml)"'; then
+        if [ -n "$CI_PIPELINE_FILES" ] && ! printf %s "$CI_PIPELINE_FILES" | grep -Eq '(uv\.lock|requirements[^"/]*\.txt|package-lock\.json|pnpm-lock\.yaml|Dockerfile[^"/]*|security-ignore\.toml)"'; then
           echo "security scan skipped: no lockfile, Dockerfile or security-ignore.toml changed"
           exit 0
         fi ;;
