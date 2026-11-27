@@ -49,3 +49,9 @@ typescript = { purpose = "typescript" }
 typescript-eslint = { purpose = "lint", duplicate_of_ok = "typescript rules for eslint" }
 vite = { purpose = "bundler" }
 vitest = { purpose = "unit tests" }
+
+# CI scanners (component security testing, ADR 0001): images pinned by digest in templates/woodpecker-security-step.yaml.
+[ci.tools]
+osv-scanner = { purpose = "dependency vulnerabilities", version = "v2.7.1", covers = "uv.lock, requirements.txt, package-lock.json, pnpm-lock.yaml" }
+gitleaks = { purpose = "secret scan", version = "v8.30.1", covers = "working tree and git history" }
+trivy = { purpose = "image scan", version = "0.76.2", covers = "base images of Dockerfile FROM lines (repos that build an image)" }

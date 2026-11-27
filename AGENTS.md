@@ -14,3 +14,5 @@ catalog (`src/standard/configs/`, symlinked as `configs/`), templates (`template
 - Changing `src/standard/configs/*` changes every repo after its next `standard sync` + SHA bump; commit and push to master,
   CI must be green.
 - Code, comments, commits in English; markdown for people may be Polish.
+- Security scans: `src/standard/security_gate.py` + `templates/woodpecker-security-step.yaml`, ADR `docs/adr/0001-security-tooling.md`;
+  scanner versions live in `catalog.toml` `[ci.tools]` (bump tag and digest together).

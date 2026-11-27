@@ -42,6 +42,30 @@ ruff = `ruff` dev dependency + `[tool.ruff] extend = "ruff.standard.toml"`; form
 Libraries: a dependency missing from the catalog is an R9 error. To add one, commit it to `catalog.toml` with a `purpose`. Front lint (ESLint, svelte-check, vitest) stays in the repo's
 own job.
 
+## Security scans (component security testing)
+
+Tools, one per purpose (ADR `docs/adr/0001-security-tooling.md`, registered in `catalog.toml` `[ci.tools]`): **osv-scanner**
+(dependency vulnerabilities: uv.lock, requirements.txt, package-lock.json, pnpm-lock.yaml), **gitleaks** (secrets, working
+tree + history), **trivy** (base images of Dockerfile FROM lines, only repos that build an image). Template:
+`templates/woodpecker-security-step.yaml` (images pinned by digest). The scanners write reports to `.security/`;
+`standard security-gate` fails the pipeline on HIGH/CRITICAL (CVSS >= 7) vulnerabilities with a fix available and on any
+secret. Ignore only through `security-ignore.toml` in the repo: `[[ignore]]` with `id`, `reason`, `expires` (YYYY-MM-DD);
+without all three or past the date it fails.
+
+Rollout per repo: paste the template (`variables:` + steps) into `.woodpecker.yaml`, set `STANDARD_REF` of `security-gate`
+to the pinned sha, add `security-gate` to `depends_on` of the image build/push steps, add `cron` to the workflow events
+(push/deploy steps keep `event: [push, manual]`) and create the cron `nightly-full` (`POST /api/repos/<id>/cron`).
+Python (uv.lock) and npm (package-lock.json / pnpm-lock.yaml) repos need nothing else; repos without an image drop the
+`security-image` step. Scans run on lockfile/Dockerfile changes, cron and manual runs; other pushes skip them.
+
+## ESLint variants
+
+`standard sync` writes `eslint.standard.js` into every `[front] dirs` entry: the TypeScript/Svelte variant when its
+`package.json` lists `typescript` or `typescript-eslint`, otherwise the plain-JavaScript variant
+(`configs/eslint.standard.plain.js`, same rules, needs only `eslint`, `@eslint/js`, `globals`). Usage:
+`import { standardConfig } from './eslint.standard.js'; export default standardConfig({ sources: ['app/**/*.js'], extra: [...] });`
+`sources` are the globs where the R2/R3/R4 limits apply (default `src/**`).
+
 ## Pinning and bumping
 
 Callers pin `STANDARD_REF: <sha>` in the `standard` step. To bump: change the sha, run

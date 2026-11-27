@@ -3,6 +3,7 @@
 import argparse
 import json
 import sys
+from datetime import date
 from pathlib import Path
 
 from standard import baseline
@@ -11,6 +12,7 @@ from standard.engine import CONFIG_FILE, analyze, run_check
 from standard.files import list_files
 from standard.init_repo import init_repo
 from standard.model import Violation
+from standard.security_gate import IGNORE_FILE, gate
 from standard.sync import sync
 from standard.tools import repo_adoption
 
@@ -32,7 +34,22 @@ def _parser() -> argparse.ArgumentParser:
             cmd.add_argument("--shrink", action="store_true", help="drop paid-off entries, never add")
         elif name == "tools":
             cmd.add_argument("--json", action="store_true", help="print {ruff, format, mypy} adoption as JSON")
+    scan = sub.add_parser("security-gate", help="fail on HIGH/CRITICAL fixable vulnerabilities and leaked secrets")
+    scan.add_argument("--root", type=Path, default=Path.cwd())
+    scan.add_argument("--reports", type=Path, default=Path(".security"), help="dir with osv*/gitleaks*/trivy*.json")
+    scan.add_argument("--require", default="gitleaks", help="comma list of scanners that must have a report")
+    scan.add_argument("--ignore-file", type=Path, default=None, help=f"default: <root>/{IGNORE_FILE}")
     return parser
+
+
+def _security_gate(args: argparse.Namespace) -> int:
+    ignore = args.ignore_file or args.root / IGNORE_FILE
+    required = tuple(name for name in args.require.split(",") if name)
+    problems = gate(args.root / args.reports, ignore, date.today(), required)
+    for problem in problems:
+        print(f"SECURITY {problem}")
+    print(f"{len(problems)} security problem(s)")
+    return 1 if problems else 0
 
 
 def _check(args: argparse.Namespace) -> int:
@@ -82,7 +99,14 @@ def _init(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    handlers = {"check": _check, "baseline": _baseline, "sync": _sync, "init": _init, "tools": _tools}
+    handlers = {
+        "check": _check,
+        "baseline": _baseline,
+        "sync": _sync,
+        "init": _init,
+        "tools": _tools,
+        "security-gate": _security_gate,
+    }
     try:
         return handlers[args.command](args)
     except ConfigError as exc:

@@ -1,6 +1,8 @@
 // Shared ESLint flat config (R8). Synced by `standard sync`; do not edit in the consuming repo.
 // Usage in eslint.config.js:  import { standardConfig } from './eslint.standard.js';
 //                             export default standardConfig({ extra: [ /* repo-specific rules */ ] });
+// Options: ignores (extra ignore globs), sources (globs the R2/R3/R4 limits apply to), extra (more flat configs).
+// TypeScript repos get this file; plain-JavaScript repos get eslint.standard.plain.js (same rules, no typescript-eslint).
 import js from '@eslint/js';
 import globals from 'globals';
 import ts from 'typescript-eslint';
@@ -18,7 +20,7 @@ const SOURCES = ['src/**/*.ts', 'src/**/*.js', 'src/**/*.mjs', 'src/**/*.svelte'
 const TESTS = ['**/*.test.ts', '**/*.spec.ts', 'e2e*/**/*.ts'];
 const PHYSICAL = { skipBlankLines: false, skipComments: false };
 
-export function standardConfig({ ignores = [], extra = [] } = {}) {
+export function standardConfig({ ignores = [], sources = SOURCES, extra = [] } = {}) {
 	return ts.config(
 		{ ignores: ['build/', '.svelte-kit/', 'node_modules/', ...ignores] },
 		js.configs.recommended,
@@ -34,7 +36,7 @@ export function standardConfig({ ignores = [], extra = [] } = {}) {
 				]
 			: []),
 		{
-			files: SOURCES,
+			files: sources,
 			rules: {
 				// R2 / R3 / R4: small files, small functions, low complexity
 				'max-lines': ['error', { max: 200, ...PHYSICAL }],

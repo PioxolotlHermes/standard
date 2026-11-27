@@ -61,7 +61,7 @@ def test_front_eslint_drift_and_npm_pins(tmp_path: Path) -> None:
     root = write_repo(tmp_path, files, FRONT_CONFIG)
     errors = found(root)
     assert {"R8 front/eslint.standard.js", "R8 front/package.json"} <= errors
-    (root / "front/eslint.standard.js").write_text(shipped_text("eslint.standard.js"), encoding="utf-8")
+    (root / "front/eslint.standard.js").write_text(shipped_text("eslint.standard.plain.js"), encoding="utf-8")
     (root / "front/package.json").write_text(json.dumps({"devDependencies": {"eslint": "10.14.0"}}), encoding="utf-8")
     assert found(root) == set()
 
@@ -117,3 +117,17 @@ def test_missing_tool_adoption_is_baselinable_but_copies_are_not(tmp_path: Path)
     assert found(root) == set()
     (root / "ruff.standard.toml").write_text("line-length = 100\n", encoding="utf-8")
     assert "R8 ruff.standard.toml" in found(root)
+
+
+def test_eslint_variant_follows_typescript(tmp_path: Path) -> None:
+    """Defect: a JS-only repo gets the typescript-eslint config (lint crashes) or a TS repo loses its type rules."""
+    plain = write_repo(
+        tmp_path / "js", {"front/package.json": json.dumps({"devDependencies": {"eslint": "10.14.0"}})}, FRONT_CONFIG
+    )
+    typed = {"devDependencies": {"eslint": "10.14.0", "typescript-eslint": "8.0.0"}}
+    ts = write_repo(tmp_path / "ts", {"front/package.json": json.dumps(typed)}, FRONT_CONFIG)
+    for root in (plain, ts):
+        assert main(["sync", "--root", str(root)]) == 0
+    assert (plain / "front/eslint.standard.js").read_text(encoding="utf-8") == shipped_text("eslint.standard.plain.js")
+    assert (ts / "front/eslint.standard.js").read_text(encoding="utf-8") == shipped_text("eslint.standard.js")
+    assert "from 'typescript-eslint'" not in shipped_text("eslint.standard.plain.js")

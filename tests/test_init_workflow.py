@@ -50,7 +50,7 @@ def test_own_ci_dogfoods_the_checker() -> None:
 
 
 def test_agents_block_is_short_and_lists_every_rule() -> None:
-    """Defect: the block pasted into every repo's AGENTS.md loses a rule or grows past its 10 lines."""
+    """Defect: the block pasted into every repo's AGENTS.md loses a rule or grows past its 12 lines."""
     text = (REPO / "templates/AGENTS-block.md").read_text(encoding="utf-8")
-    assert len(text.strip().splitlines()) <= 10
+    assert len(text.strip().splitlines()) <= 12
     assert all(f"R{n}" in text for n in range(1, 10))

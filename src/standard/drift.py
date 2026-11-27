@@ -29,7 +29,7 @@ def _read(root: Path, rel: str) -> str | None:
 
 def check_shipped_copies(root: Path, files: list[str], cfg: Config) -> list[Violation]:
     out = []
-    for rel, name in sorted(targets(files, cfg).items()):
+    for rel, name in sorted(targets(root, files, cfg).items()):
         actual = _read(root, rel)
         if actual is None:
             out.append(_fixed("R8", rel, f"missing; run `standard sync` ({name})"))

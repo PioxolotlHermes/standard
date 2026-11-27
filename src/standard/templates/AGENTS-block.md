@@ -8,3 +8,5 @@
 - R8 shared tooling (ruff, mypy strict, ESLint config) synced by `standard sync`; dev tools pinned exactly.
 - R9 dependencies must be registered in the catalog with a purpose; one library per purpose.
   Run `uvx --from git+https://github.com/PioxolotlHermes/standard standard check` before every commit; over a limit = split.
+- Security: CI scans lockfiles (osv-scanner), secrets (gitleaks) and base images (trivy); fixable HIGH/CRITICAL and secrets fail - fix by
+  bumping, ignore only via `security-ignore.toml` (id, reason, expires).

@@ -1,16 +1,29 @@
 """Shipped configs and `standard sync`."""
 
+import json
 from importlib import resources
 from pathlib import Path, PurePosixPath
 
 from standard.config import Config
+
+TYPESCRIPT_PACKAGES = ("typescript", "typescript-eslint")
 
 
 def shipped_text(name: str) -> str:
     return (resources.files("standard") / "configs" / name).read_text(encoding="utf-8")
 
 
-def targets(files: list[str], cfg: Config) -> dict[str, str]:
+def eslint_variant(root: Path, front: str) -> str:
+    """Shipped ESLint config for a front dir: the TypeScript one when package.json lists typescript, else plain JS."""
+    try:
+        data = json.loads((root / front / "package.json").read_text(encoding="utf-8"))
+    except OSError, ValueError:
+        return "eslint.standard.js"
+    names = {name for key in ("dependencies", "devDependencies") for name in data.get(key, {})}
+    return "eslint.standard.js" if names & set(TYPESCRIPT_PACKAGES) else "eslint.standard.plain.js"
+
+
+def targets(root: Path, files: list[str], cfg: Config) -> dict[str, str]:
     """Repo-relative destination -> shipped file name."""
     out = {}
     for rel in files:
@@ -18,14 +31,14 @@ def targets(files: list[str], cfg: Config) -> dict[str, str]:
         if path.name == "pyproject.toml":
             out[str(path.with_name("ruff.standard.toml"))] = "ruff.standard.toml"
     for front in cfg.front_dirs:
-        out[f"{front}/eslint.standard.js"] = "eslint.standard.js"
+        out[f"{front}/eslint.standard.js"] = eslint_variant(root, front)
     return out
 
 
 def sync(root: Path, files: list[str], cfg: Config) -> list[str]:
     """Copy the shipped configs into the repo; returns the paths that changed."""
     changed = []
-    for rel, name in sorted(targets(files, cfg).items()):
+    for rel, name in sorted(targets(root, files, cfg).items()):
         dest, text = root / rel, shipped_text(name)
         if not dest.is_file() or dest.read_text(encoding="utf-8") != text:
             dest.parent.mkdir(parents=True, exist_ok=True)
