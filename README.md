@@ -33,7 +33,7 @@ standard tools --json                    # adopted lint tools: {"ruff": bool, "f
 Output is one line per violation: `RULE path:line message`; exit code 1 on any error. A baselined violation passes while it
 does not grow; a baseline entry that no longer fails is an error (run `standard baseline --shrink`).
 
-CI: copy `templates/ci-caller.yml`, put `templates/AGENTS-block.md` into the repo's `AGENTS.md`. The reusable workflow runs
+CI on Woodpecker (ci.maszlanka.pl): copy the step from `templates/woodpecker-standard-step.yaml` (pin `STANDARD_REF` there). GitHub Actions: copy `templates/ci-caller.yml`, put `templates/AGENTS-block.md` into the repo's `AGENTS.md`. The reusable workflow runs
 the checker and then ruff, `ruff format --check` and mypy, each only when the repo has adopted it (`standard tools --json`):
 ruff = `ruff` dev dependency + `[tool.ruff] extend = "ruff.standard.toml"`; format = ruff + `[tool.standard] format = true` in
 `standard.toml` (set it once the repo is formatted); mypy = `mypy` dev dependency + `[tool.mypy] strict = true` + `files` or

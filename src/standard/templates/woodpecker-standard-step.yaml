@@ -1,0 +1,40 @@
+# Woodpecker CI step for the standard gate (replaces templates/ci-caller.yml on ci.maszlanka.pl).
+# Paste into `steps:` of .woodpecker.yaml, and add `standard` to `depends_on` of the build/push steps.
+# Also needed at top level (the diff guard needs full history; Woodpecker clones shallow by default):
+#   clone:
+#     git:
+#       image: woodpeckerci/plugin-git
+#       settings: {partial: false, depth: 0}
+# Python projects pinned to a patch version: use that python image + `pip install uv` instead of the uv image.
+steps:
+  # Standard gate (PioxolotlHermes/standard): checker R1-R9 + diff guard, then ruff / ruff format / mypy when the repo
+  # adopted them. Bump STANDARD_REF here only (one place). Needs git history for the diff guard (full clone).
+  - name: standard
+    image: ghcr.io/astral-sh/uv:0.9-python3.12-bookworm   # has git + uv (slim has no git)
+    depends_on: []   # parallel with tests; add `standard` to depends_on of the build/push steps
+    environment:
+      STANDARD_REF: 58c138298903f76cd76fb105307df96ed2eccfc5
+    commands:
+      - |
+        set -eu
+        src="git+https://github.com/PioxolotlHermes/standard@$STANDARD_REF"
+        if [ "$CI_PIPELINE_EVENT" = pull_request ]; then
+          git fetch origin "+$CI_COMMIT_TARGET_BRANCH:refs/remotes/origin/$CI_COMMIT_TARGET_BRANCH" || true
+          base="$(git merge-base "origin/$CI_COMMIT_TARGET_BRANCH" HEAD || true)"
+        else
+          base="$CI_PREV_COMMIT_SHA"
+        fi
+        # new branch / manual run (empty or all-zero sha) or unknown commit after a force push: what the branch adds to master
+        if [ -z "$(printf %s "$base" | tr -d 0)" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+          git fetch origin +master:refs/remotes/origin/master 2>/dev/null || true
+          base="$(git merge-base origin/master HEAD || git rev-parse HEAD)"
+        fi
+        echo "diff guard base: $base"
+        uvx --python 3.15 --from "$src" standard check --base "$base"
+        uvx --python 3.15 --from "$src" standard tools --json > /tmp/tools.json
+        cat /tmp/tools.json
+        flag() { python3 -c 'import json,sys; sys.exit(0 if json.load(open("/tmp/tools.json")).get(sys.argv[1]) else 1)' "$1"; }
+        if flag ruff || flag mypy; then uv sync --frozen; fi
+        if flag ruff; then uv run ruff check .; fi
+        if flag format; then uv run ruff format --check .; fi
+        if flag mypy; then uv run mypy; fi
