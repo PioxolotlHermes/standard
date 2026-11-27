@@ -1,10 +1,12 @@
 # Woodpecker CI step for the standard gate (replaces templates/ci-caller.yml on ci.maszlanka.pl).
 # Paste into `steps:` of .woodpecker.yaml, and add `standard` to `depends_on` of the build/push steps.
-# Also needed at top level (the diff guard needs full history; Woodpecker clones shallow by default):
+# Also needed at top level. The diff guard needs full history (Woodpecker clones shallow by default) and, on
+# pull_request, origin/<target branch>. Only the clone plugin holds the netrc (private repo), a normal step cannot fetch,
+# so the clone fetches the target branch itself (plugin-git `fetch-target-branch`, no merge):
 #   clone:
 #     git:
 #       image: woodpeckerci/plugin-git
-#       settings: {partial: false, depth: 0}
+#       settings: {partial: false, depth: 0, fetch-target-branch: true}
 # Python projects pinned to a patch version: use that python image + `pip install uv` instead of the uv image.
 steps:
   # Standard gate (PioxolotlHermes/standard): checker R1-R9 + diff guard, then ruff / ruff format / mypy when the repo
@@ -19,7 +21,6 @@ steps:
         set -eu
         src="git+https://github.com/PioxolotlHermes/standard@$STANDARD_REF"
         if [ "$CI_PIPELINE_EVENT" = pull_request ]; then
-          git fetch origin "+$CI_COMMIT_TARGET_BRANCH:refs/remotes/origin/$CI_COMMIT_TARGET_BRANCH" || true
           base="$(git merge-base "origin/$CI_COMMIT_TARGET_BRANCH" HEAD || true)"
         else
           base="$CI_PREV_COMMIT_SHA"

@@ -1,11 +1,9 @@
-import re
 from pathlib import Path
 
 from standard.cli import main
 from tests.helpers import found
 
 REPO = Path(__file__).resolve().parents[1]
-CHECKOUT_SHA = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 
 
 def test_init_creates_a_repo_that_passes_check(tmp_path: Path) -> None:
@@ -28,33 +26,27 @@ def test_init_refuses_to_overwrite(tmp_path: Path) -> None:
     assert (tmp_path / "standard.toml").read_text(encoding="utf-8") == "# mine\n"
 
 
-def test_reusable_workflow_is_safe_and_pinned() -> None:
-    """Defect: the shared workflow uses unpinned/third-party actions, a SIGPIPE-prone grep -q, or loses its inputs."""
-    text = (REPO / ".github/workflows/standard.yml").read_text(encoding="utf-8")
-    assert "workflow_call:" in text
-    assert "inputs.ref" in text
-    assert "--base" in text
-    assert not re.search(r"\|\s*grep -q", text)
-    uses = re.findall(r"uses:\s*(\S+)", text)
-    assert uses == [CHECKOUT_SHA]
-
-
-def test_lint_steps_run_only_for_adopted_tools() -> None:
-    """Defect: the reusable workflow lints with tools a repo has not adopted, so atlas and the monorepo stay red."""
-    text = (REPO / ".github/workflows/standard.yml").read_text(encoding="utf-8")
+def test_woodpecker_step_template_runs_lint_only_for_adopted_tools() -> None:
+    """Defect: the shared CI step lints with tools a repo has not adopted, so atlas and the monorepo stay red."""
+    text = (REPO / "templates/woodpecker-standard-step.yaml").read_text(encoding="utf-8")
     assert "standard tools --json" in text
+    assert "--base" in text
     for tool, command in (("ruff", "ruff check ."), ("format", "ruff format --check ."), ("mypy", "mypy")):
-        step = re.search(
-            rf"- name: [^\n]*\n\s+if: steps\.tools\.outputs\.{tool} == 'true'\n(.*?)(?=\n      - name|\Z)", text, re.S
-        )
-        assert step and f"uv run {command}" in step.group(1), tool
+        assert f"if flag {tool}; then uv run {command}; fi" in text, tool
 
 
-def test_own_ci_enforces_the_standard_through_the_reusable_workflow() -> None:
+def test_woodpecker_step_template_gets_the_pr_target_branch_from_the_clone() -> None:
+    """Defect: on pull_request the diff guard has no origin/<target> (the step has no netrc), so it checks nothing."""
+    text = (REPO / "templates/woodpecker-standard-step.yaml").read_text(encoding="utf-8")
+    assert "fetch-target-branch: true" in text
+    assert "depth: 0" in text
+
+
+def test_own_ci_dogfoods_the_checker() -> None:
     """Defect: this repo stops dogfooding the checker, so the standard rots unnoticed."""
-    text = (REPO / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    assert "uses: ./.github/workflows/standard.yml" in text
-    assert "ref: ${{ github.sha }}" in text
+    text = (REPO / ".woodpecker.yaml").read_text(encoding="utf-8")
+    assert "standard check --base" in text
+    assert "fetch-target-branch: true" in text
 
 
 def test_agents_block_is_short_and_lists_every_rule() -> None:

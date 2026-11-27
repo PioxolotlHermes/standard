@@ -1,0 +1,48 @@
+# CI on ci.maszlanka.pl (Woodpecker on nas-vm, T-140). Replaces .github/workflows/ci.yml (tests + self-check).
+# Steps have internet but no LAN (docker-egress firewall).
+# Full history + the PR target branch: the diff guard needs both (see templates/woodpecker-standard-step.yaml).
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings: {partial: false, depth: 0, fetch-target-branch: true}
+
+when:
+  - event: [push, pull_request, manual]
+    branch: master
+
+variables:
+  - &uv_image ghcr.io/astral-sh/uv:0.13.6-trixie   # git + uv; downloads Python 3.15
+
+steps:
+  - name: tests
+    image: *uv_image
+    environment:
+      UV_LINK_MODE: copy
+    commands:
+      - uv sync --frozen
+      - uv run pytest -q
+      - uv run ruff check .
+      - uv run ruff format --check .
+      - uv run mypy
+
+  # Self-check with the checker from this very commit (the other repos pin a sha through the template step).
+  - name: standard
+    image: *uv_image
+    depends_on: []
+    environment:
+      UV_LINK_MODE: copy
+    commands:
+      - |
+        set -eu
+        if [ "$CI_PIPELINE_EVENT" = pull_request ]; then
+          base="$(git merge-base "origin/$CI_COMMIT_TARGET_BRANCH" HEAD || true)"
+        else
+          base="$CI_PREV_COMMIT_SHA"
+        fi
+        # first run / manual run / unknown commit after a force push: what the branch adds to master
+        if [ -z "$(printf %s "$base" | tr -d 0)" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+          base="$(git merge-base origin/master HEAD || git rev-parse HEAD)"
+        fi
+        echo "diff guard base: $base"
+        uv sync --frozen
+        uv run standard check --base "$base"
