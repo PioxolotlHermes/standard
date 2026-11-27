@@ -37,7 +37,7 @@ steps:
         if [ "$CI_PIPELINE_EVENT" = pull_request ]; then
           base="$(git merge-base "origin/$CI_COMMIT_TARGET_BRANCH" HEAD || true)"
         else
-          base="$CI_PREV_COMMIT_SHA"
+          base="${CI_PREV_COMMIT_SHA:-}"
         fi
         # first run / manual run / unknown commit after a force push: what the branch adds to master
         if [ -z "$(printf %s "$base" | tr -d 0)" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
