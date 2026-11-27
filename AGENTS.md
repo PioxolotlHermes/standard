@@ -1,8 +1,8 @@
 # standard - agent notes
 
 Shared code standard for all PioxolotlHermes repos: checker (`src/standard/`, stdlib only), tool configs and library
-catalog (`src/standard/configs/`, symlinked as `configs/`), templates (`templates/`), reusable workflow
-(`.github/workflows/standard.yml`).
+catalog (`src/standard/configs/`, symlinked as `configs/`), templates (`templates/`, Woodpecker step:
+`templates/woodpecker-standard-step.yaml`).
 
 - Setup/run: `export PATH=/opt/data/.local/bin:$PATH`; `uv sync`, `uv run pytest`, `uv run ruff check .`,
   `uv run ruff format --check .`, `uv run mypy`, `uv run standard check`.

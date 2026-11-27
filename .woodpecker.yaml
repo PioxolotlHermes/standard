@@ -1,4 +1,4 @@
-# CI on ci.maszlanka.pl (Woodpecker on nas-vm, T-140). Replaces .github/workflows/ci.yml (tests + self-check).
+# CI on ci.maszlanka.pl (Woodpecker on nas-vm, T-140). Tests + self-check.
 # Steps have internet but no LAN (docker-egress firewall).
 # Full history + the PR target branch: the diff guard needs both (see templates/woodpecker-standard-step.yaml).
 clone:

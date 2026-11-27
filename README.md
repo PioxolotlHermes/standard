@@ -1,7 +1,7 @@
 # standard
 
 Shared code standard for the PioxolotlHermes repos: a stdlib-only checker (`standard`), shared tool configs, a library
-catalog and a reusable GitHub Actions workflow. Rules apply from the first commit; known debt is kept in a baseline that may
+catalog and a Woodpecker CI step template. Rules apply from the first commit; known debt is kept in a baseline that may
 only shrink.
 
 ## Rules
@@ -33,7 +33,7 @@ standard tools --json                    # adopted lint tools: {"ruff": bool, "f
 Output is one line per violation: `RULE path:line message`; exit code 1 on any error. A baselined violation passes while it
 does not grow; a baseline entry that no longer fails is an error (run `standard baseline --shrink`).
 
-CI on Woodpecker (ci.maszlanka.pl): copy the step from `templates/woodpecker-standard-step.yaml` (pin `STANDARD_REF` there). GitHub Actions: copy `templates/ci-caller.yml`, put `templates/AGENTS-block.md` into the repo's `AGENTS.md`. The reusable workflow runs
+CI on Woodpecker (ci.maszlanka.pl): copy the step from `templates/woodpecker-standard-step.yaml` (pin `STANDARD_REF` there) and put `templates/AGENTS-block.md` into the repo's `AGENTS.md`. The step runs
 the checker and then ruff, `ruff format --check` and mypy, each only when the repo has adopted it (`standard tools --json`):
 ruff = `ruff` dev dependency + `[tool.ruff] extend = "ruff.standard.toml"`; format = ruff + `[tool.standard] format = true` in
 `standard.toml` (set it once the repo is formatted); mypy = `mypy` dev dependency + `[tool.mypy] strict = true` + `files` or
@@ -44,7 +44,7 @@ own job.
 
 ## Pinning and bumping
 
-Callers pin `uses: ...standard.yml@<sha>` and `with: ref: <sha>` (the same commit). To bump: change both shas, run
+Callers pin `STANDARD_REF: <sha>` in the `standard` step. To bump: change the sha, run
 `standard sync`, commit the synced configs together with the bump.
 
 ## Exceptions policy

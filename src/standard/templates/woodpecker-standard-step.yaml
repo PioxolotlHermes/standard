@@ -1,4 +1,4 @@
-# Woodpecker CI step for the standard gate (replaces templates/ci-caller.yml on ci.maszlanka.pl).
+# Woodpecker CI step for the standard gate.
 # Paste into `steps:` of .woodpecker.yaml, and add `standard` to `depends_on` of the build/push steps.
 # Also needed at top level. The diff guard needs full history (Woodpecker clones shallow by default) and, on
 # pull_request, origin/<target branch>. Only the clone plugin holds the netrc (private repo), a normal step cannot fetch,
