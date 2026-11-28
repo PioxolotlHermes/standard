@@ -46,6 +46,7 @@ def _security_gate(args: argparse.Namespace) -> int:
     ignore = args.ignore_file or args.root / IGNORE_FILE
     required = tuple(name for name in args.require.split(",") if name)
     problems = gate(args.root / args.reports, ignore, date.today(), required)
+    print("reports read: " + (", ".join(sorted(p.name for p in (args.root / args.reports).glob("*.json"))) or "none"))
     for problem in problems:
         print(f"SECURITY {problem}")
     print(f"{len(problems)} security problem(s)")

@@ -47,7 +47,7 @@ steps:
       - *skip_unless_relevant
       - mkdir -p .security
       # exit 1 = vulnerabilities found (the gate judges them); anything above is a scanner failure
-      - osv-scanner scan source -r --allow-no-lockfiles --x-exclude node_modules --x-exclude .venv --format json --output-file .security/osv.json . || [ $? -eq 1 ]
+      - /osv-scanner scan source -r --allow-no-lockfiles --x-exclude node_modules --x-exclude .venv --format json --output-file .security/osv.json . || [ $? -eq 1 ]
 
   - name: security-secrets
     image: *gitleaks_image
