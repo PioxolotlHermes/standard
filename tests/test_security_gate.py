@@ -51,3 +51,35 @@ def test_missing_report_fails_the_gate(tmp_path: Path, capsys: Any) -> None:
     """Defect: a scanner that crashed leaves no report and the pipeline goes green without having scanned."""
     assert main(["security-gate", "--root", str(tmp_path), "--reports", "none"]) == 1
     assert "no gitleaks report" in capsys.readouterr().out
+
+
+LEAK = [{"RuleID": "generic-api-key", "File": "t.py", "StartLine": 3, "Fingerprint": "abc123:t.py:generic-api-key:3"}]
+PERMANENT = '[[ignore]]\nid = "abc123:t.py:generic-api-key:3"\nreason = "test fixture"\nkind = "false-positive"\n'
+
+
+def test_false_positive_secret_is_ignored_forever_but_only_by_exact_fingerprint(tmp_path: Path) -> None:
+    """Defect: a history false positive turns red after a date, or its entry hides a different secret."""
+    reports(tmp_path, osv_report("1", fixed=False), LEAK)
+    assert run(tmp_path, PERMANENT) == []
+    other = PERMANENT.replace("abc123", "def456")
+    assert len(run(tmp_path, other)) == 1  # a new secret in the same file still fails
+    assert len(run(tmp_path)) == 1
+
+
+def test_false_positive_kind_cannot_hide_a_vulnerability(tmp_path: Path) -> None:
+    """Defect: a permanent entry is used to silence a vulnerability, which must keep an expiry."""
+    reports(tmp_path, osv_report("9.8", fixed=True))
+    assert len(run(tmp_path, PERMANENT.replace("abc123:t.py:generic-api-key:3", "CVE-1"))) == 1
+
+
+def test_malformed_permanent_entries_fail(tmp_path: Path) -> None:
+    """Defect: an empty reason, unknown field/kind or expiry on a permanent entry is accepted and hides the leak."""
+    reports(tmp_path, osv_report("1", fixed=False), LEAK)
+    bad = [
+        PERMANENT.replace("test fixture", ""),
+        PERMANENT + 'note = "x"\n',
+        PERMANENT.replace("false-positive", "whatever"),
+        PERMANENT + 'expires = "2030-01-01"\n',
+    ]
+    for text in bad:
+        assert len(run(tmp_path, text)) == 2, text  # the entry problem and the unhidden leak

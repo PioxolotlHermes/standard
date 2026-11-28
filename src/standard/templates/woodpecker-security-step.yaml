@@ -10,6 +10,14 @@
 #   id = "GHSA-xxxx-xxxx-xxxx"        # advisory id / alias (CVE-...), or the gitleaks Fingerprint for a secret
 #   reason = "why it is safe or not reachable"
 #   expires = "2027-02-28"            # YYYY-MM-DD, the finding comes back after it
+#   A verified false positive in git HISTORY (history cannot be rewritten, so an expiry would only make the nightly run
+#   red later) is ignored permanently by its gitleaks fingerprint, still with a reason; secrets only, never vulnerabilities:
+#   [[ignore]]
+#   id = "<gitleaks Fingerprint>"
+#   reason = "what it is and how it was verified not to be a secret"
+#   kind = "false-positive"           # no `expires`; unknown fields or an empty reason fail the gate
+# The scanners write their reports to .security/ in the workspace: put `.security/` in the repo's .gitignore (tests that
+# check a clean `git status` break otherwise); `standard sync` adds the line.
 # When it runs: dependency + image scans on pull_request/push that change a lockfile, a Dockerfile or the ignore file,
 # and always on cron and manual. On any other push the step starts, sees from CI_PIPELINE_FILES that nothing relevant
 # changed and exits 0 in about a second (digest-pinned images stay cached on the agent); the push/deploy step is never

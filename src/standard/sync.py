@@ -35,6 +35,16 @@ def targets(root: Path, files: list[str], cfg: Config) -> dict[str, str]:
     return out
 
 
+def ensure_gitignore(root: Path) -> bool:
+    """Add `.security/` (scanner reports) to .gitignore so a clean `git status` stays clean; True when changed."""
+    path = root / ".gitignore"
+    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    if any(line.strip().rstrip("/").lstrip("/") == ".security" for line in text.splitlines()):
+        return False
+    path.write_text(text + ("" if not text or text.endswith("\n") else "\n") + ".security/\n", encoding="utf-8")
+    return True
+
+
 def sync(root: Path, files: list[str], cfg: Config) -> list[str]:
     """Copy the shipped configs into the repo; returns the paths that changed."""
     changed = []
@@ -44,4 +54,6 @@ def sync(root: Path, files: list[str], cfg: Config) -> list[str]:
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(text, encoding="utf-8")
             changed.append(rel)
+    if ensure_gitignore(root):
+        changed.append(".gitignore")
     return changed

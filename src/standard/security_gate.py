@@ -1,7 +1,8 @@
 """`standard security-gate`: decide from scanner reports (osv-scanner, gitleaks, trivy) whether the pipeline fails.
 
 Fails on: a HIGH/CRITICAL vulnerability that has a fix available, any leaked secret, an invalid or expired entry in the
-reviewed ignore file. Ignoring needs `security-ignore.toml` in the repo: `[[ignore]]` with id, reason and expires.
+reviewed ignore file. Ignoring needs `security-ignore.toml` in the repo: `[[ignore]]` with id, reason and expires;
+only a verified secret false positive (gitleaks fingerprint) may use `kind = "false-positive"` instead of `expires`.
 """
 
 import json
@@ -21,6 +22,7 @@ LEVELS = {"HIGH", "CRITICAL"}
 class Finding:
     ids: frozenset[str]  # advisory id plus aliases (CVE, GHSA) or a gitleaks fingerprint
     text: str
+    secret: bool = False  # only a secret can be ignored permanently as a verified false positive
 
 
 def _score(value: object) -> float:
@@ -73,30 +75,64 @@ def gitleaks_findings(data: list[dict[str, Any]]) -> list[Finding]:
         Finding(
             frozenset({str(leak.get("Fingerprint", ""))}),
             f"secret {leak.get('RuleID')} at {leak.get('File')}:{leak.get('StartLine')}",
+            secret=True,
         )
         for leak in data
     ]
 
 
-def load_ignores(path: Path, today: date) -> tuple[dict[str, str], list[str]]:
-    """Valid, unexpired ignore ids -> reason, and problems with the file itself."""
+FIELDS = {"id", "reason", "expires", "kind"}
+FALSE_POSITIVE = "false-positive"
+
+
+@dataclass(frozen=True)
+class Ignores:
+    """Valid ignore ids -> reason: `timed` for any finding until its date, `permanent` for secret false positives."""
+
+    timed: dict[str, str]
+    permanent: dict[str, str]
+
+
+def _timed_problem(label: str, expires: str, today: date) -> str | None:
+    try:
+        last_day = date.fromisoformat(expires)
+    except ValueError:
+        return f'{IGNORE_FILE}: entry {label} needs expires (YYYY-MM-DD) unless kind = "{FALSE_POSITIVE}"'
+    if last_day < today:
+        return f"{IGNORE_FILE}: {label} expired on {expires}; fix the finding or review and renew it"
+    return None
+
+
+def _entry_problem(entry: dict[str, Any], today: date) -> str | None:
+    """What is wrong with one `[[ignore]]` entry (None = valid)."""
+    ident, reason, expires, kind = (str(entry.get(k, "")).strip() for k in ("id", "reason", "expires", "kind"))
+    label = ident or "?"
+    if set(entry) - FIELDS:
+        return f"{IGNORE_FILE}: entry {label} has unknown fields {sorted(set(entry) - FIELDS)}"
+    if not (ident and reason):
+        return f"{IGNORE_FILE}: entry {label} needs id and reason"
+    if kind not in ("", FALSE_POSITIVE):
+        return f"{IGNORE_FILE}: {label} has unknown kind {kind!r} (only {FALSE_POSITIVE!r})"
+    if kind == FALSE_POSITIVE:
+        return f"{IGNORE_FILE}: {label} is permanent; remove `expires`" if expires else None
+    return _timed_problem(label, expires, today)
+
+
+def load_ignores(path: Path, today: date) -> tuple[Ignores, list[str]]:
+    """Valid ignores and problems with the file itself (an invalid entry hides nothing)."""
+    problems: list[str] = []
+    ignores = Ignores({}, {})
     if not path.is_file():
-        return {}, []
-    entries = tomllib.loads(path.read_text(encoding="utf-8")).get("ignore", [])
-    ignored, problems = {}, []
-    for entry in entries:
-        ident, reason, expires = (str(entry.get(k, "")).strip() for k in ("id", "reason", "expires"))
-        try:
-            last_day = date.fromisoformat(expires)
-        except ValueError:
-            last_day = None
-        if not (ident and reason and last_day):
-            problems.append(f"{IGNORE_FILE}: entry {ident or '?'} needs id, reason and expires (YYYY-MM-DD)")
-        elif last_day < today:
-            problems.append(f"{IGNORE_FILE}: {ident} expired on {expires}; fix the finding or review and renew it")
+        return ignores, problems
+    for entry in tomllib.loads(path.read_text(encoding="utf-8")).get("ignore", []):
+        problem = _entry_problem(entry, today)
+        if problem:
+            problems.append(problem)
         else:
-            ignored[ident] = reason
-    return ignored, problems
+            (ignores.permanent if entry.get("kind") else ignores.timed)[str(entry["id"]).strip()] = str(
+                entry["reason"]
+            ).strip()
+    return ignores, problems
 
 
 PARSERS: dict[str, Callable[[Any], list[Finding]]] = {
@@ -122,8 +158,12 @@ def collect(reports: Path, required: tuple[str, ...]) -> tuple[list[Finding], li
     return findings, problems
 
 
+def _hidden(finding: Finding, ignores: Ignores) -> bool:
+    return bool(finding.ids & ignores.timed.keys()) or (finding.secret and bool(finding.ids & ignores.permanent.keys()))
+
+
 def gate(reports: Path, ignore_file: Path, today: date, required: tuple[str, ...]) -> list[str]:
     """Problems that must fail the pipeline (empty list = green)."""
     ignored, problems = load_ignores(ignore_file, today)
     findings, broken = collect(reports, required)
-    return problems + broken + [f.text for f in findings if not f.ids & ignored.keys()]
+    return problems + broken + [f.text for f in findings if not _hidden(f, ignored)]

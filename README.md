@@ -50,7 +50,12 @@ tree + history), **trivy** (base images of Dockerfile FROM lines, only repos tha
 `templates/woodpecker-security-step.yaml` (images pinned by digest). The scanners write reports to `.security/`;
 `standard security-gate` fails the pipeline on HIGH/CRITICAL (CVSS >= 7) vulnerabilities with a fix available and on any
 secret. Ignore only through `security-ignore.toml` in the repo: `[[ignore]]` with `id`, `reason`, `expires` (YYYY-MM-DD);
-without all three or past the date it fails.
+without all three or past the date it fails. One exception: a verified secret false positive (test fixture, fake key,
+key name, UUID reference - mostly in git history that cannot be rewritten) is ignored permanently by its gitleaks
+fingerprint: `id`, mandatory `reason`, `kind = "false-positive"`, no `expires`. It hides only a secret with exactly that
+fingerprint, never a vulnerability; unknown fields, an unknown kind, an empty reason or an `expires` on such an entry fail.
+Vulnerability (osv/trivy) ignores always keep the expiry. Real secrets always fail. Reports go to `.security/`: it must be in
+the repo's `.gitignore` (`standard sync` adds it) so a clean `git status` stays clean.
 
 Rollout per repo: paste the template (`variables:` + steps) into `.woodpecker.yaml`, set `STANDARD_REF` of `security-gate`
 to the pinned sha, add `security-gate` to `depends_on` of the image build/push steps, add `cron` to the workflow events

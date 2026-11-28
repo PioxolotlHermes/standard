@@ -27,6 +27,16 @@ Dependency and image scans run when a lockfile, Dockerfile or the ignore file ch
 Normal pushes skip them (green in seconds); gitleaks and the gate run every time (seconds). Skipped scans never block
 the image push; a failing gate does.
 
+## Amendment (T-138, 2026-11-28): permanent ignore for verified secret false positives
+gitleaks scans the whole git history and history cannot be changed, so an expiring ignore for a false positive there
+only makes the nightly run red later without any new information. Decision (CORI): a secret finding verified as a
+false positive may be ignored by its gitleaks fingerprint with a mandatory `reason` and `kind = "false-positive"`
+(no `expires`). The gate applies such an entry to secret findings only, matched by exact fingerprint; vulnerability
+(osv/trivy) ignores keep the mandatory expiry. Unknown fields, an unknown kind, an empty reason or `expires` on a
+permanent entry fail the gate, and a real secret always fails (rotate it, do not ignore it).
+Reports go to `.security/`, which repos keep in `.gitignore` (`standard sync` adds it) so tests that need a clean
+`git status` keep working.
+
 ## Consequences
 - A new HIGH advisory turns the nightly run red until the dependency is bumped or an expiring ignore is reviewed.
 - osv-scanner reads advisories online (deps.dev / osv.dev); steps have internet egress.

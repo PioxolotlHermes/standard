@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from standard.cli import main
-from standard.sync import shipped_text
+from standard.sync import ensure_gitignore, shipped_text
 from tests.helpers import CONFIG, found, write_repo
 
 PYPROJECT = """[project]
@@ -131,3 +131,10 @@ def test_eslint_variant_follows_typescript(tmp_path: Path) -> None:
     assert (plain / "front/eslint.standard.js").read_text(encoding="utf-8") == shipped_text("eslint.standard.plain.js")
     assert (ts / "front/eslint.standard.js").read_text(encoding="utf-8") == shipped_text("eslint.standard.js")
     assert "from 'typescript-eslint'" not in shipped_text("eslint.standard.plain.js")
+
+
+def test_sync_adds_security_dir_to_gitignore_once(tmp_path: Path) -> None:
+    """Defect: scanner reports in .security/ show up in `git status` and break repos whose tests need a clean tree."""
+    (tmp_path / ".gitignore").write_text("node_modules", encoding="utf-8")
+    assert ensure_gitignore(tmp_path) and not ensure_gitignore(tmp_path)
+    assert (tmp_path / ".gitignore").read_text(encoding="utf-8") == "node_modules\n.security/\n"
