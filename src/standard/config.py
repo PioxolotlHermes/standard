@@ -4,6 +4,8 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+from standard.overrides import Limits, Override, OverrideError, effective_limits, parse_overrides
+
 
 class ConfigError(Exception):
     """The configuration file is missing or malformed."""
@@ -28,6 +30,11 @@ class Config:
     front_dirs: tuple[str, ...] = ()
     exemptions: tuple[Exemption, ...] = ()
     format: bool = False  # [tool.standard] format = true: the repo is formatted, `ruff format --check` is enforced
+    overrides: tuple[Override, ...] = ()  # [overrides.<rule>]: per-repo thresholds, each with reason + ADR
+
+    @property
+    def limits(self) -> Limits:
+        return effective_limits(self.overrides)
 
     def role(self, module: str) -> str:
         """Role of a top-level module directory: shared, core, root, migrations or module."""
@@ -58,6 +65,10 @@ def parse_config(text: str) -> Config:
     except tomllib.TOMLDecodeError as exc:
         raise ConfigError(f"invalid TOML: {exc}") from exc
     modules = data.get("modules", {})
+    try:
+        overrides = parse_overrides(data.get("overrides"))
+    except OverrideError as exc:
+        raise ConfigError(str(exc)) from exc
     exemptions = tuple(
         Exemption(str(e.get("path", "")), str(e.get("rule", "")), str(e.get("reason", "")).strip())
         for e in data.get("exceptions", [])
@@ -74,6 +85,7 @@ def parse_config(text: str) -> Config:
         front_dirs=_strings(data.get("front", {}).get("dirs")),
         exemptions=exemptions,
         format=data.get("tool", {}).get("standard", {}).get("format") is True,
+        overrides=overrides,
     )
 
 

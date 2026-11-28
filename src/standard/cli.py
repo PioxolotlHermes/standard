@@ -57,6 +57,8 @@ def _check(args: argparse.Namespace) -> int:
     report = run_check(args.root, args.config, args.base)
     for violation in report.errors:
         print(violation.format())
+    for line in report.overrides:
+        print(line)
     print(report.budget)
     print(f"baseline debt: {report.debt} violation group(s) still listed")
     print(f"{len(report.errors)} error(s)")

@@ -33,3 +33,4 @@ class Report:
     errors: list[Violation] = field(default_factory=list)
     debt: int = 0
     budget: str = ""
+    overrides: tuple[str, ...] = ()  # active per-repo threshold overrides, printed on every run

@@ -9,11 +9,11 @@ only shrink.
 | ID | Rule | Checked by |
 |---|---|---|
 | R1 | Modular monolith (production code only; tests may import any module, production must not import tests or `[tests] globs` dirs): module = top-level directory under a package root; no imports between modules. Roles in `standard.toml`: `shared`, `core` (needs an ADR), `root`, `migrations` | checker (Python AST, TS/Svelte imports) |
-| R2 | Files <= 200 physical lines, tests <= 300 (migrations, `# generated` files, data exempt) | checker |
-| R3 | Python functions <= 50 lines | checker (front: ESLint) |
-| R4 | Cyclomatic complexity <= 12 | ruff C90 / ESLint `complexity` (via shared configs) |
+| R2 | Files <= 200 physical lines, tests <= 300 (override: `file_lines`, `test_file_lines`) (migrations, `# generated` files, data exempt) | checker |
+| R3 | Python functions <= 50 lines (override: `function_lines`) | checker (front: ESLint) |
+| R4 | Cyclomatic complexity <= 12 (override: `complexity`) | ruff C90 / ESLint `complexity` (via shared configs) |
 | R5 | Code in English; Polish letters only in `[texts]` globs | checker |
-| R6 | Only critical tests: each states `Defect:`; test lines <= code lines (an existing overrun is baselined by its excess lines, may only shrink) | checker |
+| R6 | Only critical tests: each states `Defect:`; test lines <= code lines (override: `test_code_ratio`, default 1.0) (an existing overrun is baselined by its excess lines, may only shrink) | checker |
 | R7 | New suppressions (noqa, type: ignore, eslint-disable, skip, `.only`), new exceptions, baseline growth need Piotrek's decision | checker with `--base` |
 | R8 | Shared tooling: `ruff.standard.toml`, `eslint.standard.js`, mypy strict, dev tools pinned exactly (not-yet-adopted tools and floating pins can be baselined; stale synced copies cannot) | checker (drift) |
 | R9 | Dependencies must be registered in `src/standard/configs/catalog.toml` with a purpose; one library per purpose (a second one needs `duplicate_of_ok = "<reason>"`) | checker |
@@ -76,8 +76,34 @@ Python (uv.lock) and npm (package-lock.json / pnpm-lock.yaml) repos need nothing
 Callers pin `STANDARD_REF: <sha>` in the `standard` step. To bump: change the sha, run
 `standard sync`, commit the synced configs together with the bump.
 
+## Threshold overrides (per repo)
+
+A repo can relax or tighten R2/R3/R4/R6 thresholds in its own `standard.toml`, but only with the owner's decision on record
+(ADR `docs/adr/0002-threshold-overrides.md`):
+
+```toml
+[overrides.R6]
+test_code_ratio = 1.5
+reason = "remaining tests guard alert storms, mute/undo races, ..."
+adr = "docs/adr/0003-r6-test-budget.md"   # must exist in the repo; the owner's decision is documented there
+```
+
+| Rule | Keys (positive; integers except the ratio) | Default |
+|---|---|---|
+| R2 | `file_lines`, `test_file_lines` | 200, 300 |
+| R3 | `function_lines` | 50 |
+| R4 | `complexity` | 12 |
+| R6 | `test_code_ratio` | 1.0 |
+
+`reason` and `adr` are mandatory per rule table; an unknown rule or key, a missing/empty `reason`/`adr`, a non-numeric or
+non-positive value is a config error (exit 2), a missing ADR file is a `CONFIG` error. `standard check` prints every active
+override (`override R6 test_code_ratio=1.5 (docs/adr/0003-...)`) and the R6 line shows the effective max. R4 (ruff C90) and
+the ESLint limits are enforced by the synced configs, so `standard sync` writes the effective values into
+`ruff.standard.toml` / `eslint.standard*.js` (the drift check expects exactly those); run it after adding an override.
+A baselined R6 entry must be removed (`standard baseline --shrink`) once the override covers the excess.
+
 ## Exceptions policy
 
-Over a limit = split the code. Never raise a threshold, never add an exception on your own: `[[exceptions]]` in
-`standard.toml` (path, rule, reason) and every new suppression need Piotrek's decision (`tasks ask`). Thresholds change only
-here, in this repo.
+Over a limit = split the code. Never raise a threshold, never add an exception or an `[overrides]` entry on your own:
+`[[exceptions]]` (path, rule, reason), `[overrides]` (with an ADR) and every new suppression need Piotrek's decision
+(`tasks ask`). Default thresholds change only here, in this repo.

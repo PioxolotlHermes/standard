@@ -7,7 +7,7 @@ from pathlib import Path, PurePosixPath
 from standard.config import Config
 from standard.manifests import Dep, npm_deps, python_deps
 from standard.model import Violation
-from standard.sync import shipped_text, targets
+from standard.sync import rendered_text, shipped_text, targets
 from standard.tools import adoption
 
 ESLINT_CONFIGS = ("eslint.config.js", "eslint.config.mjs", "eslint.config.ts")
@@ -33,7 +33,7 @@ def check_shipped_copies(root: Path, files: list[str], cfg: Config) -> list[Viol
         actual = _read(root, rel)
         if actual is None:
             out.append(_fixed("R8", rel, f"missing; run `standard sync` ({name})"))
-        elif actual != shipped_text(name):
+        elif actual != rendered_text(name, cfg.limits):
             out.append(_fixed("R8", rel, f"differs from the shipped {name}; run `standard sync`, never edit it"))
     return out
 

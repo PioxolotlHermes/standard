@@ -5,6 +5,7 @@ import re
 
 from standard.files import Source, parse_python
 from standard.model import Violation
+from standard.overrides import Limits
 from standard.size_rules import python_functions
 
 CASE = re.compile(r"""^\s*(?:test|it)(?:\.(?:only|skip|fixme|fail|slow))?\s*\(\s*(?:['"`]([^'"`]*))?""")
@@ -44,12 +45,18 @@ def check_defects(sources: list[Source]) -> list[Violation]:
     return out
 
 
-def check_budget(sources: list[Source]) -> tuple[list[Violation], str]:
-    """Test lines must not exceed code lines (hand-written, same exemptions as R2)."""
+def check_budget(sources: list[Source], limits: Limits) -> tuple[list[Violation], str]:
+    """Test lines must not exceed code lines times the ratio (hand-written, same exemptions as R2)."""
     tests = sum(len(s.lines) for s in sources if s.counted and s.is_test)
     code = sum(len(s.lines) for s in sources if s.counted and not s.is_test)
     ratio = tests / code if code else (0.0 if not tests else float("inf"))
-    text = f"R6 budget: test lines {tests} / code lines {code} = {ratio:.2f} (max 1.00)"
+    text = f"R6 budget: test lines {tests} / code lines {code} = {ratio:.2f} (max {limits.test_code_ratio:.2f})"
     # baselinable: key "budget", value = lines by which the suite exceeds the code (may only shrink)
-    bad = [] if ratio <= 1.0 else [Violation("R6", "(repo)", 0, text, key="budget", value=tests - code)]
+    bad = (
+        []
+        if ratio <= limits.test_code_ratio
+        else [
+            Violation("R6", "(repo)", 0, text, key="budget", value=max(1, tests - round(code * limits.test_code_ratio)))
+        ]
+    )
     return bad, text

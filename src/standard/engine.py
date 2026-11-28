@@ -9,6 +9,7 @@ from standard.diff_guard import check_diff
 from standard.drift import check_drift
 from standard.files import list_files, load_sources
 from standard.model import Report, Violation
+from standard.overrides import missing_adrs
 from standard.r1_imports import check_imports
 from standard.size_rules import check_file_sizes, check_function_sizes
 from standard.text_rule import check_polish
@@ -29,6 +30,9 @@ def config_problems(root: Path, cfg: Config, name: str) -> list[Violation]:
         if not item.reason:
             msg = f"exception {item.rule} {item.path} has no reason"
             out.append(Violation("CONFIG", name, 0, msg, baselinable=False))
+    for ovr in missing_adrs(root, cfg.overrides):
+        msg = f"override {ovr.rule} {ovr.key} needs an existing ADR with the owner's decision (adr = {ovr.adr!r})"
+        out.append(Violation("CONFIG", name, 0, msg, baselinable=False))
     return out
 
 
@@ -47,11 +51,11 @@ def analyze(root: Path, cfg: Config, name: str = CONFIG_FILE) -> tuple[list[Viol
     """All violations after exceptions (before the baseline), plus the R6 budget line."""
     files = list_files(root)
     sources = load_sources(root, files, cfg.tests)
-    budget_violations, budget = check_budget(sources)
+    budget_violations, budget = check_budget(sources, cfg.limits)
     found = (
         check_imports(sources, cfg)
-        + check_file_sizes(sources)
-        + check_function_sizes(sources)
+        + check_file_sizes(sources, cfg.limits)
+        + check_function_sizes(sources, cfg.limits)
         + check_polish(sources, cfg.texts)
         + check_defects(sources)
         + budget_violations
@@ -71,4 +75,4 @@ def run_check(root: Path, config_path: Path | None = None, base: str | None = No
         rel = config_path.resolve().relative_to(root.resolve()).as_posix() if inside else None
         errors += check_diff(root, base, rel)
     errors.sort(key=lambda v: (v.rule, v.path, v.line))
-    return Report(errors, debt, budget)
+    return Report(errors, debt, budget, tuple(item.describe() for item in cfg.overrides))
